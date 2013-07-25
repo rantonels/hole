@@ -1,0 +1,145 @@
+(questa guida è a caso e temporanea e sarà fatta più meglio più tardi)
+
+Hole is a roguelike turn-based game.
+
+---HOW TO RUN---
+
+Make sure you have python and python-curses installed. If you have apt-get (ubuntu, mint, etc...) run:
+sudo apt-get install python
+
+To run the game use:
+cd ~/Dropbox/cartelladovestalaroba
+python holeNUMERODIVERSIONE.py
+
+you should be greeted by the title card.
+
+---BASICS---
+
+@ - Player
+# - Wall
+v - Exit
+
+Find the exit to go to the next floor. Go fast or you'll drown in the water.
+
+Red underscore letters are animals (basic enemies.) An a (Ant) is the weakest, a z (Zebra) is the toughest.
+
+Occasionally you can find golden rooms with a dragon (red D) guarding a Chest (which is for now empty.)
+
+---COMMANDS---
+
+Remember to deactivate CAPS LOCK.
+
+ARROW KEYS - Move / Attack
+A - Pick up items
+D - Drop items
+0-9 - Use/equip items
+C - Cast spell
+P - Commit suicide
+I - Check game progress, found emeralds...
+
+Whatever the command you give, existing or not, successful or not, you lose your turn
+
+---ITEMS---
+
+**ASTERISKS**
+
+These items are picked up by walking on them
+
+GOLD - Yellow
+Gold is found in yellow nuggets (*). Just walk on it to pick it up.
+
+MANA DROPS - Blue
+A mana drop is a blue asterisk. It restores 1 mana point.
+
+EMERALDS - Green
+There is one emerald in every level. You can check which emeralds you have collected with the I command. They will grant you a special advantage in the last stage.
+
+**OTHER ITEMS**
+
+You can pick up other items by walking over them and pressing A: they will appear in your inventory. You can use them by pressing the digit relative to their inventory slot (e.g.: you can use the bread you are given by default by pressing 0.) For equippable items, using means equipping. You can drop items with the D key, followed by number - or A-C for equipped items. You can't unequip items and put them back in your inventory, you have to throw them away.
+
+HERBS - Y
+
+Herbs can belong to many species:
+
+*Basil		+40 HP
+*Stramonium	-70 HP
+*Sage		+2 MANA
+*Nettle		+1 ATK with 75% probability
+*Dandelion	+1 DFN with 33% probability
+
+and be accompained by adjectives:
+
+*Stinging	-10 HP when picking up AND on usage
+*Sacred		+2 MANA
+*Spicy		(as for now, no effect)
+*Silver		effect is multiplied x2
+*Golden		effect is multiplied x5
+
+Many herbs are not identified by default and will appear in your inventory simply as "Herb". You will need a Book of Botany to identify them (but you can still use them blindly.)
+
+BOOKS
+
+Books perform an action and are used once.
+
+Books named after a spell (Fire, Teleport, etc.) perform the corresponding spell (once) with no mana cost (there is still, however, a bonus if using a Magic Wand.) Other books include:
+
+*Book of Botany		identify all herbs in your inventory
+
+FOOD
+
+Food restores health points.
+
+0	Bread		+25 HP
+Q	Goulash		+50 HP
+
+---MAGIC---
+
+Magic can be performed as soon as one has acquired Mana points. You can perform spells by pressing the C button and typing a Formula, that is, a sequence of "sacred symbols" (the letters Q, W, E and R) and hitting enter. The length of the Formula can be at most 5 symbols, or 7 if you're holding a Magic Wand. Every symbol uses a Mana point, and the length of the Formula is also limited by your Mana quota. The Formula is scanned for Words from the list below; for every word found, the corresponding spell is cast. You can have more Words, and thus Spells, in a single Formula, thus saving on Mana, but you cannot perform the same Spell more than once in one Formula. Some combination of symbols are cursed words, and will induce a miscast (you will hurt yourself.)
+
+Most spell have an enhanced effect if performed holding a Magic Wand.
+
+This is the basic scheme of how a single Cast works:
+
+FORMULA  -------->   WORDS  ------->  SPELLS
+	 contains            induce
+
+An example of a cast:
+
+Player casts formula EWQQQ
+* 4 Mana points are used up
+* Formula contains words EWQ and QQQ
+* A teleport spell is cast
+* There is a miscast and the player hurts himself
+
+
+-SPELLS
+
+SPELL		BASIC EFFECT								WITH WAND
+Fire		hits all enemies in an area around the player				more damage
+Teleport	teleport the player somewhere else (at random) in the same floor	
+Clairvoyance	show the inside of rooms close to you					show the entire floor
+Shockwave	pushes enemies away and smashes them on walls				more push and damage
+Healing		heals the player							more healing
+Thunder		hits the closest enemy with a thunder					more damage
+
+-WORDS
+
+EQQR	Fire Spell
+EWQ	Teleport Spell
+QEQR	Clairvoyance Spell
+QRW	Shockwave Spell
+RWE	Thunder Spell
+WW	Healing Spell
+
+-MISCASTS
+
+EQE
+QQQ
+RRW
+WWQ
+
+-HIDDEN SPELLS
+
+QEEEQ
+
