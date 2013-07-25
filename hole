@@ -1617,7 +1617,7 @@ while alive:
 		cs = 0
 		for c in range(0,len(curss)):
 			if curss[c]>0:
-				back.addstr(1,LW_W+15+cs,curses_initial[c],curses.color_pair(curses_colors[c]))
+				back.addstr(1,LW_W+15+cs,str(curss[c]),curses.color_pair(curses_colors[c]))
 				cs+=1
 
 		back.addstr(1,LW_W+19, "LV "+str(rank).zfill(2))
@@ -2344,7 +2344,7 @@ while alive:
 							mess("The "+e[2]+" has hit you. (-"+str(led)+" HP)")
 							if e[3] in freezinganimals:
 								if randint(0,10)==0:
-									curss[CURS_ICE] = 5
+									curss[CURS_ICE] = randint(5,10)
 									mess("The "+e[2]+" has frozen you")
 						else:
 							mess("The "+e[2]+" misses.")
