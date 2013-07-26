@@ -323,7 +323,7 @@ tset = {
 0: (' ',0),	#walkable empty tile
 1: ('#',1),	#wall
 2: (' ',0),	#unexplored/outside
-3: ('=',3),	#door
+3: ('=',5),	#door
 4: ('v',0),	#exit
 5: ('#',7),	#golden wall
 6: ('X',7),	#golden column
