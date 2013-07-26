@@ -1202,7 +1202,7 @@ while menu:
 			name = "Sasellor"
 			gender = 0
 			spellsprog = [1, 0, 0]
-			attributes = [0] * len(attribute_strings)
+			attributes = [1,1,0,0]
 		elif n==1:
 			
 			m = 0
@@ -1511,7 +1511,7 @@ while alive:
 			entities.append([gx,gy]+bosses["Fairy"])
 
 		#add chestmonster
-		for c in range(0,randint(0,2)/2):
+		for c in range(0,randint(0,2)/2 + DEBUG * 70):
 			(gx,gy) = findfree()
 			t = choice(list(set(ssheet) - set([OBJ_GOLD,OBJ_EMERALD,OBJ_DROP,OBJ_CHESTMONSTER])))
 			objects.append([gx,gy,OBJ_CHESTMONSTER,0,ssheet[t][0],ssheet[t][1]])
@@ -1909,8 +1909,20 @@ while alive:
 					found = True
 					if o[2] == OBJ_CHESTMONSTER:
 						mess("The object explodes in a swarm of enemies")
-						for w in range(4,9):
-							entities.append([x,y]+list(mobs[randint(stage/3,stage/2)]))
+						w = randint(3,8)
+						koth = []
+						cnt = 0
+						for p in range(0,w):
+							px = x
+							py = y
+							while (not isfreepos(px,py)) and cnt < 500 and (not [px,py] in koth):
+								cnt +=1
+								px += randint(-1,1)
+								py += randint(-1,1)
+							koth.append([px,py])
+
+						for j in koth:
+							entities.append(j+list(mobs[randint(stage/3,stage/2)]))
 						objects.remove(o)
 					elif o[2] == OBJ_PLANT:
 						if additem(o):
@@ -2338,6 +2350,13 @@ while alive:
 			
 
 
+			stdscr.addstr(18,1,"ATTRIBUTES")
+			u = 0
+			for j in range(0,len(attributes)):
+				if attributes[j]:
+					stdscr.addstr(20+u,1,attribute_strings[j][0])
+					u+=1
+
 			stdscr.refresh()
 			stdscr.getch()
 
@@ -2593,8 +2612,10 @@ while alive:
 					scales = True
 
 			if not scales:
-				dmg = int(max(mxhp*0.08,5))/(1+attributes[ATTR_DRAGONBORN])
-				mess("You walk on lava (-10 HP)")
+				dmg = int(max(mxhp*0.08,5))
+				if attributes[ATTR_DRAGONBORN]:
+					dmg = dmg/2
+				mess("You walk on lava (-"+str(dmg)+" HP)")
 				hitp(dmg,True)
 
 		#cure curses
