@@ -1,5 +1,4 @@
 # Class to produce random map layouts
-from numpy import *
 from random import *
 from math import *
 
@@ -14,7 +13,7 @@ class dMap:
        """Generate random layout of rooms, corridors and other features"""
        #makeMap can be modified to accept arguments for values of failed, and percentile of features.
        #Create first room
-       self.mapArr=ones((ysize,xsize))
+       self.mapArr=[[1 for y in range(ysize)] for x in range(xsize)]
        w,l,t=self.makeRoom()
        while len(self.roomList)==0:
            y=randrange(ysize-1-l)+1
