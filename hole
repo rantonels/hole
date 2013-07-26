@@ -1368,11 +1368,11 @@ while alive:
 						lvl[i][j] = 0
 		
 		#add lava
-		if stage >= 40:
-			if stage >= 35:
-				mapper.makeLava(LV_W,LV_H,0.2,0)
+		if stage >= 35:
+			if stage >= 40:
+				mapper.gayLava(LV_W,LV_H,0.65,30,6)
 			else:
-				mapper.makeLava(LV_W,LV_H,0.4,0)
+				mapper.gayLava(LV_W,LV_H,0.95,30,6)
 		
 			for i in range(0,LV_W):
 				for j in range(0,LV_H):
@@ -2370,7 +2370,7 @@ while alive:
 				for i in range(0,len(gems)):
 					gems[i] = True
 			if cmd == ord('l'):
-				stage=49
+				stage=34
 				crawlin=False
 
 		#move wotah

@@ -41,6 +41,7 @@ starty=60
 somename= dMap()
 somename.makeMap(startx,starty,110,15,5,60) 
 #somename.makeLava(60,60,0.4,0)
+somename.gayLava(60,60,0.95,30,6)
 for y in range(starty):
         line = ""
         for x in range(startx):
@@ -61,24 +62,14 @@ for y in range(starty):
 			
         print line
 
-'''for y in range(starty):
-        line = ""
-        for x in range(startx):
-                if somename.lavaArr[y][x]==0:
-                        line += " "
-                elif somename.lavaArr[y][x]==1:
-                        line += "."
-                elif somename.lavaArr[y][x]==2:
-                        line += "#"
-                elif somename.lavaArr[y][x]==3 :#or somename.lavaArr[y][x]==4 or somename.lavaArr[y][x]==5:
-                        line += "="
-		elif somename.lavaArr[y][x]==99:
-			line += "H"
-		elif somename.lavaArr[y][x]==98:
-			line += "D"
-		else:
-			line += "?"
-			
-        print line
+s=""
+for a in range(starty):
+	for b in range(startx):
+		if somename.lavaArr[a][b]==0:
+                        s += "."
+                elif somename.lavaArr[a][b]==1:
+                        s += "$"
+	s += "\n"
 
-'''
+print s
+

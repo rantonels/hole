@@ -305,24 +305,21 @@ class dMap:
 				for y in range(0,ysize):
 					self.lavaArr[y][x] = self.tempArr[y][x]
 
-   def gayLava(self,xsize,ysize,thresh,balls,rad):
+   def gayLava(self,xsize,ysize,thresh,balls):
 	#place metaballs
 	mb = []
 	for c in range(0,balls):
-		mb.append(  ( randint(0,xsize-1)  ,  randint(0,ysize-1)   )   )
+		mb.append((randint(0,xsize-1),randint(0,ysize-1)))
 
-	self.lavaArr = [[0]*ysize for _ in range(xsize) ]
+	self.lavaArr =[0]*xsize]*ysize
 
 	for x in range(0,xsize):
 		for y in range(0,ysize):
+			self.lavaArr[y][x] = 0
 			value = float(0)
 			for m in mb:
-				rq = (x-m[0])**2 + (y-m[1])**2 
-				if rq < rad**2:
-						value += (1 - float(rq)/float(rad**2))**2
-		#	print value
+				rq = (x-m[0])**2 + (y-m[1])**2
+				if rq < 100:
+					value += (1 - float(rq)/100)**2
 			if value > thresh:
 				self.lavaArr[y][x] = 1
-			else:
-				self.lavaArr[y][x] = 0
-
