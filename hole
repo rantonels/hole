@@ -129,6 +129,9 @@ OBJ_CHESTMONSTER = 8
 OBJ_STONE = 9
 OBJ_STRAMONIUM_SEED = 10
 OBJ_HANDBOOK = 11
+OBJ_CARCASS = 12
+OBJ_PUKE = 13
+OBJ_GNOME = 14
 
 OBJ_BOOK_BOTANY = 100
 OBJ_BOOK_TELEPORTATION = 101
@@ -167,8 +170,8 @@ def object_names(obj):
 	0:"Gold Nugget",
 	1:"Plant_DEBUG",
 	2:"Bread",
-	3:"DEBUG",
-	4:"DEBUG",
+	3:"Mana Drop",
+	4:"Emerald",
 	5:"Goulash",
 	6:"Fairy Liver",
 	7:"Pasta",
@@ -176,6 +179,9 @@ def object_names(obj):
 	9:"Stone",
 	10:"Stramonium Seed",
 	11:"Magic Handbook",
+	12:"Carcass_DEBUG",
+	13:"Puke",
+	14:"Gnome",
 	
 	100:"Book of Botany",
 	101:"Book of Teleportation",
@@ -200,13 +206,22 @@ def object_names(obj):
 	if num in matr:
 		out=matr[num]
 	if num == 1:
-		if obj[5] == 1:
+		if len(obj)>=6 and obj[5] == 1:
 			if obj[3] == 0:
 				out = plants[obj[4]]
 			else:
 				out = plant_adjectives[obj[3]][1] + " " + plants[obj[4]]
 		else:
 			out = "Herb"
+	if num == OBJ_CARCASS:
+		out = mobsalphabet[obj[3]] + " Carcass"	
+
+	if num == OBJ_CHESTMONSTER and len(obj)>=5:
+		out = object_names([0,0,obj[4]])
+	
+	if num == OBJ_GNOME:
+		out = obj[3].name
+
 	return out
 
 
@@ -266,11 +281,13 @@ mobs = [(mobsalphabet[i] , ord('a')+i,	2 + max(i,-25+3*i),	max(1,i-1,-24+3*i),	4
 freezinganimals = [x + ord('a') for x in ( [8,13,15,16,18,21,23,25] + [0,1]*DEBUG) ] + ['I']
 
 bosses = {
-	"Dragon": ["Dragon", 'D', 150, 80, 1000,300],
-	"Fairy" : ["Fairy" , 'F', 4 , 18,  70, 100],
-	"Ice Troll": ["Ice Troll", 'I', 100, 60, 350, 300],
-	"Succubus" : ["Succubus", 'S', 18, 10, 120, 5 ]
+	"Dragon":	["Dragon", 	'D', 150, 80, 1000,300],
+	"Fairy":	["Fairy" , 	'F', 4 , 18,  70, 100],
+	"Ice Troll":	["Ice Troll", 	'I', 100, 60, 350, 300],
+	"Succubus" :	["Succubus", 	'S', 18, 10, 120, 5 ],
+	"Gnome":	["Gnome",	'g']
 }
+
 
 DR_SLEEPING = 0
 DR_AWAKE = 1
@@ -282,11 +299,27 @@ DR_FIRING = 2
 
 class dragonBrain:
 	def __init__(self):
-		self.status = DR_SLEEPING
+		self.status = randint(0,2)/2
 		self.charge = DR_IDLE
 		self.bx = 0
 		self.by = 0
 		self.particles = 0
+
+gnomenames = "Berenbur Minnimalkin Bimpni Minnizig Boddywinkle Murkor Bunkkor Nacklebell Cobbnab Namji Dalfoodle Namzig Duvabert Ninbert Duvakor Pilwinkle Elmadge Ranzbert Folmalkin Ranzmut Fudwick Ranznor Garder Roywinkle Glimtwiss Schepgel Hedbiddle Schepmalkin Jebkor Shamip Klemmut Turkor Klemto Wayfoodle Lindtwiss Waypest Looppen Wayrick Loopwyn Zookmadge Lumbiddle Zookmottin Lumwinkle Zooknock Mibbini Zookpen Minnibur Zookwinkle Minnijon".split(" ")
+
+GN_HIDING = 0
+GN_EMPTY = 1
+GN_FULL = 2
+GN_DONE = 3
+
+class gnomeBrain:
+	def __init__(self):
+		self.status = GN_HIDING
+
+class gnomeStuff:
+	def __init__(self):
+		self.name = choice(gnomenames)
+		self.loot = -1
 
 
 '''mobs = {
@@ -314,6 +347,8 @@ converter = {
 4:3,
 5:3,
 
+55:11,
+
 98:6,
 99:5
 }
@@ -331,6 +366,7 @@ tset = {
 8: ('~',12),	#lava
 9: ('*',2),	#emerald walkway
 10: ('.',0), 	#emerald walkway (not activated)
+11: ('$',1),	#dirt
 
 100: ('~',6),	#water
 101: ('@',10)	#Oskar
@@ -349,6 +385,9 @@ ssheet = {
 9: ('o',0),
 10:('.',2),
 11:('=',10),
+12:('E',0),
+13:('8',2),
+14:('E',2),
 
 100: ('?',2),
 101: ('?',3),
@@ -356,9 +395,6 @@ ssheet = {
 103: ('?',3),
 104: ('?',3),
 105: ('?',10),
-106: ('?',3),
-107: ('?',3),
-108: ('?',3),
 
 200: ('!',0),
 201: (':',0),
@@ -511,8 +547,8 @@ def spellcast(n):
 		count = 0
 		for e in entities:
 			if e[0] in range(x-5,x+6) and e[1] in range(y-5,y+6):
-				nx = max(min(e[0]+randint(2,5+3*wand)*sign(e[0]-x),LV_W-1),0)
-				ny = max(min(e[1]+randint(2,5+3*wand)*sign(e[1]-y),LV_H-1),0)
+				nx = max(min(e[0]+randint(2,5+3*wand)*sgn(e[0]-x),LV_W-1),0)
+				ny = max(min(e[1]+randint(2,5+3*wand)*sgn(e[1]-y),LV_H-1),0)
 				if isnonsolid(lvl[nx][ny]):
 					e[0]=nx
 					e[1]=ny
@@ -718,7 +754,7 @@ attribute_strings = {
 	}
 
 def exprofile(r):
-	return int(r*4.9 + r*r*4.9/19)
+	return int(r*4.9 + r*r*4.9/16)
 
 
 curses.init_pair(0, curses.COLOR_WHITE,		curses.COLOR_BLACK)
@@ -774,7 +810,7 @@ specialending = -1
 
 name="ERROR"
 dungeonname = choice ( [ "Ala", "Seth", "More", "Dath", "Kathra"]) + choice ( [ "go", "na" , "ka", "gu", "ni"]) + choice ( [ "r", "r", "dor"])
-DEBUG_CHEST = [[0,0,OBJ_HANDBOOK], [0,0,OBJ_PAPER,1]  ,[0,0,OBJ_WAND], [0,0,OBJ_STONE], [0,0,OBJ_PLANT,0,1,1] , [0,0,OBJ_STONE] ]
+DEBUG_CHEST = [[0,0,OBJ_HANDBOOK], [0,0,OBJ_PAPER,1]  ,[0,0,OBJ_WAND], [0,0,OBJ_STONE], [0,0,OBJ_PLANT,0,1,1] , [0,0,OBJ_STONE], [0,0,OBJ_CARCASS,7] ]
 inventory = [ [0,0,OBJ_BREAD] , [0,0,OBJ_LETTER] ] #+ DEBUG_CHEST 
 if DEBUG: inventory+= DEBUG_CHEST
 equip = [ ]
@@ -963,12 +999,18 @@ def dropshit(x,y,lv):
 
 def hite(e,force):
 	global slaindragons
+	if e[3] == 'g':
+		return
 	damage = max(0,force-randint(0,e[5]))
 	e[6] = max(0,e[6]-force)
 	if(e[6]<=0):
 		mess("The "+e[2]+" is dead.")
-		if (e[3] in range(ord('a'),ord('z')+1)) and randint(0,5)==0:
-			dropshit(e[0],e[1],e[3]-ord('a'))
+		if (e[3] in range(ord('a'),ord('z')+1)):
+			if randint(0,5)==0:
+				dropshit(e[0],e[1],e[3]-ord('a'))
+			elif randint(0,8)==0:
+				#dropcarcass
+				objects.append([e[0],e[1], OBJ_CARCASS, e[3] - ord('a')])
 		if (e[2] == "Fairy"):
 			if lvl[x][y]!=8:
 				objects.append([e[0],e[1],OBJ_FAIRY_LIVER])
@@ -1049,6 +1091,9 @@ def iswalkable(cx,cy):
 def isfrees(qx,qy):
 	return isfree(lvl[qx][qy])
 
+def ispathable(num):
+	return (num in [0,3,8])
+
 '''def cansee(xa,ya,xb,yb):
 	x1=min(xa,xb)
 	x2=max(xa,xb)
@@ -1079,11 +1124,11 @@ def cansee(xa,ya,xb,yb):
 	return True
 
 
-messages=["the adventure begins"]
-def mess(strin):
+messages=[("the adventure begins",0)]
+def mess(strin,col=0):
 	if len(messages)>=5:
 		messages.pop(0)
-	messages.append(strin)
+	messages.append([strin,col])
 
 def findfree():
 	global lvl
@@ -1106,7 +1151,7 @@ def floodfill(xs,ys,ite=-1):
 		nex=-1
 	else:
 		nex=ite-1
-	global fog
+	
 	if fog[xs][ys] != 0:
 		return
 	fog[xs][ys] = 1
@@ -1119,6 +1164,32 @@ def floodfill(xs,ys,ite=-1):
 		floodfill(xs-1,ys+1,nex)
 		floodfill(xs-1,ys-1,nex)
 		floodfill(xs+1,ys-1,nex)
+
+con = []
+def confloodfill(xs,ys,ite=-1):
+	global con
+	if (xs < 0) or (xs>=LV_W) or (ys < 0) or (ys>=LV_H):
+		return
+	if ite==0:
+		return
+	if ite==-1:
+		nex=-1
+	else:
+		nex=ite-1
+	
+	if con[xs][ys] != 0:
+		return
+	con[xs][ys] = 1
+	if ispathable(lvl[xs][ys]):
+		confloodfill(xs+1,ys,nex)
+		confloodfill(xs-1,ys,nex)
+		confloodfill(xs,ys-1,nex)
+		confloodfill(xs,ys+1,nex)
+		confloodfill(xs+1,ys+1,nex)
+		confloodfill(xs-1,ys+1,nex)
+		confloodfill(xs-1,ys-1,nex)
+		confloodfill(xs+1,ys-1,nex)
+
 
 def fag(xp,yp):
 	global x,y
@@ -1336,28 +1407,95 @@ while alive:
 		waterfrozen=False
 		mess("The ice melts...")
 	stage+=1
-	stdscr.addstr(3,3,"Generating dungeon...")
-	stdscr.refresh()
-	
+		
 	objects = []
 	entities = []
 
 	if stage<50:
 		#LEVEL GENERATION
 
-		mapper=dMap()
-		dragonfactor = 4 * stage**2/(50**2)
-		if DEBUG and stage==1:
-			dragonfactor = 8
-		
-		lestries = 0
-		while not mapper.makeMap(LV_W,LV_H,110,10+dragonfactor,dragonfactor,60):
-			lestries+=1
-			stdscr.addstr(3,25,"("+str(lestries)+")")
+
+		#try generation
+		trygen = True
+		trycount = 0
+		reasons = []
+		while trygen:
+	
+			mapper=dMap()
+			stdscr.clear()
+			stdscr.addstr(3,3,"Generating dungeon..." + (trycount>=1)*(" ("+str(trycount)+")"))
+			asfd = 5
+			reasons = reasons[-5:]
+			for r in reasons:
+				stdscr.addstr(asfd,3,r)
+				asfd += 1
 			stdscr.refresh()
 
-		lvl = [[converter[mapper.mapArr[j][i]] for i in range(0,LV_W)] for j in range(0,LV_H)]
-	
+			reasons = []
+
+			dragonfactor = 4 * stage**2/(50**2)
+			if DEBUG and stage==1:
+				dragonfactor = 8
+			
+			lestries = 0
+			while not mapper.makeMap(LV_W,LV_H,110,10+dragonfactor,dragonfactor,60):
+				lestries+=1
+
+			lvl = [[converter[mapper.mapArr[j][i]] for i in range(0,LV_W)] for j in range(0,LV_H)]
+			
+			#correct naked edges
+			for i in range(LV_W):
+				for j in range(LV_H):
+					if lvl[i][j] == 2:
+						shit = False
+						for a in range(max(0,i-1),1+min(LV_W-1,i+1)):
+							for b in range(max(0,j-1),1+min(LV_H-1,j+1)):
+								if ispathable(lvl[a][b]):
+									shit = True
+									break	
+							if shit:
+								break
+						if shit:
+							if DEBUG:
+								mess("Corrected naked edge")
+							lvl[i][j] = 1
+
+			#CHECKING
+
+			trygen = False
+
+			trycount += 1
+
+			#count spaces
+			spcount = 0
+			for l in lvl:
+				for j in l:
+					if j == 0:
+						spcount+=1
+			if DEBUG:
+				mess(str(spcount)+" free spaces")	
+
+			if spcount < 700:
+				trygen = True
+				reasons.append("Dungeon was too small.")	
+		
+			#check connectedness
+			con = [ [ 0 for y in range(0,LV_H)] for x in range(0,LV_W)]
+			(gx,gy) = findfree()
+			confloodfill(gx,gy)
+			for i in range(0,LV_W):
+				find = False
+				for j in range(0,LV_H):
+					if lvl[i][j] == 0 and con[i][j] == 0:
+						trygen = True
+						reasons.append("Dungeon was not connected.")
+						if DEBUG:
+							mess("Dungeon unconnected")
+						find = True
+						break
+				if find:
+					break
+
 		#correct doors
 		sas = [1,3,5]
 		for i in range(0,LV_W):
@@ -1427,6 +1565,9 @@ while alive:
 			("Who has 8 legs and is a God?","Nobody! AHAHAHAHAHAHAHA")
 		])
 	
+		stdscr.addstr(3,3,"Adding objects and entities...")
+		stdscr.refresh()
+
 		#add 15 gold pieces
 		for c in range(0,15):
 			(gx,gy) = findfree()
@@ -1501,7 +1642,7 @@ while alive:
 				if lvl[i][j] == 6:
 					entities.append([i,j]+bosses["Dragon"]+[dragonBrain()])
 					lvl[i][j] = 0
-		for c in range(0,DEBUG*10):
+		for c in range(0,0*DEBUG*10):
 			(gx,gy) = findfree()
 			entities.append([gx,gy] + bosses["Dragon"] + [dragonBrain()])
 
@@ -1511,10 +1652,10 @@ while alive:
 			entities.append([gx,gy]+bosses["Fairy"])
 
 		#add chestmonster
-		for c in range(0,randint(0,2)/2 + DEBUG * 70):
+		for c in range(0,randint(0,2)/2 + DEBUG * 0):
 			(gx,gy) = findfree()
-			t = choice(list(set(ssheet) - set([OBJ_GOLD,OBJ_EMERALD,OBJ_DROP,OBJ_CHESTMONSTER])))
-			objects.append([gx,gy,OBJ_CHESTMONSTER,0,ssheet[t][0],ssheet[t][1]])
+			t = choice(list(set(ssheet) - set([OBJ_GOLD,OBJ_PUKE,OBJ_EMERALD,OBJ_DROP,OBJ_CARCASS,OBJ_PLANT,OBJ_CHESTMONSTER,OBJ_GNOME])))	
+			objects.append([gx,gy,OBJ_CHESTMONSTER,0,t])
 
 		#add succubus
 		if (stage in range(18,21)):
@@ -1530,6 +1671,15 @@ while alive:
 		if stage in range(30,33):
 			(gx,gy) = findfree()
 			entities.append([gx,gy]+bosses["Ice Troll"])
+
+		#add gnomes
+		#for c in range(0,10):
+		#	(gx,gy) = findfree()
+
+		for i in range(0,LV_W):
+			for j in range(0,LV_H):
+				if lvl[i][j] == 11 and randint(0,20) == 0:
+					entities.append([i,j]+bosses["Gnome"]+[gnomeBrain(),gnomeStuff()])
 
 
 		#add clues
@@ -1586,10 +1736,14 @@ while alive:
 	fog = [[0 for j in range(0,LV_H)] for i in range(0,LV_W)]
 
 	floodfill(x,y)
+	
 #	for i in range(max(0,x-8),min(LV_W,x+8)):
 #		for j in range(max(0,y-8),min(LV_H,y+8)):
 #			fog[i][j] = 1
 	
+	stdscr.clear()
+	stdscr.refresh()
+
 	crawlin=True
 	while alive and crawlin:
 		#DISPLAY / DRAW
@@ -1612,30 +1766,41 @@ while alive:
 			for j in range(max(0,y-LW_H),min(y+LW_H,LV_H-1)):
 				if fag(i,j):
 					tilecol = curses.color_pair(tset[lvl[i][j]][1])
-					if visibility_dots and lvl[i][j] == 0:
-						if checkfow(i,j):
-							mypad.addch(j,i,'.',curses.color_pair(8))
-					elif lvl[i][j] == 100 and waterfrozen:	
+					if lvl[i][j] == 100 and waterfrozen:	
 						mypad.addch(j,i,'/' , curses.color_pair(15))
+					elif visibility_dots and lvl[i][j] == 0:
+							if checkfow(i,j):
+								mypad.addch(j,i,'.',curses.color_pair(8))
 					else:
 						mypad.addch(j,i,tset[lvl[i][j]][0] , tilecol  )
 				else:
 					mypad.addch(j,i,' ',curses.color_pair(0))
+
+
+				if DEBUG and lvl[i][j] == 0 and not con[i][j] == 1:
+					mypad.addch(j,i,'+')
 		#draw objects
 		for o in objects:
 			if fog[o[0]][o[1]] and checkfow(o[0],o[1]):
 					if o[2] == OBJ_CHESTMONSTER and o[3] == 0:
-						mypad.addch(o[1],o[0],o[4], curses.color_pair(o[5]))
+						mypad.addch(o[1],o[0],ssheet[o[4]][0], curses.color_pair( ssheet[o[4]][1]))
+					elif o[2] == OBJ_CARCASS:
+						mypad.addch(o[1],o[0],chr(ord('a')+o[3]),curses.color_pair(0))
 					else:
 						mypad.addch(o[1],o[0],ssheet[o[2]][0], curses.color_pair(ssheet[o[2]][1]))	
 		
 		#draw entities
 		for e in entities:
+			if e[2] == "Gnome" and (not isnonsolid(lvl[e[0]][e[1]])):
+				continue
 			if fog[e[0]][e[1]] and checkfow(e[0],e[1]):
 				if lvl[e[0]][e[1]] == 8:
 					c=curses.color_pair(12)
 				else:
-					c=curses.color_pair(4) 
+					if e[2] == "Gnome":
+						c = curses.color_pair(2)
+					else:
+						c=curses.color_pair(4) 
 				mypad.addch(e[1],e[0],e[3], c)
 				if e[2] == "Dragon":
 					if e[8].particles == -1:
@@ -1647,6 +1812,8 @@ while alive:
 		#draw character
 		if lvl[x][y] == 8:
 			c=curses.color_pair(9)
+		elif curss[CURS_POISON]>0:
+			c=curses.color_pair(2)
 		elif curss[CURS_LOVE]>0:
 			c=curses.color_pair(4)
 		elif curss[CURS_ICE]>0:
@@ -1686,13 +1853,8 @@ while alive:
 			back.addstr(LW_H+3,21, "EF!", curses.color_pair(2))
 		ct=0
 		for m in reverse(messages):
-			if ct>1:
-				lecol=curses.color_pair(4)
-			elif ct == 1:
-				lecol=curses.color_pair(3)
-			else:
-				lecol=curses.color_pair(0)	
-			back.addstr(LW_H+6+ct,1, m, lecol)
+			lecol=curses.color_pair(m[1])
+			back.addstr(LW_H+6+ct,1, m[0], lecol)
 			ct+=1
 
 		back.addstr(LW_H+2,14,"*FLOOR "+str(stage)+"*")
@@ -1702,7 +1864,12 @@ while alive:
 		cs = 0
 		for c in range(0,len(curss)):
 			if curss[c]>0:
-				back.addstr(1,LW_W+15+cs,str(curss[c]),curses.color_pair(curses_colors[c]))
+				if curss[c] > 9:
+					ster = "+"
+				else:
+					ster = str(curss[c])
+
+				back.addstr(1,LW_W+15+cs,ster,curses.color_pair(curses_colors[c]))
 				cs+=1
 
 		back.addstr(1,LW_W+19, "LV "+str(rank).zfill(2))
@@ -1737,7 +1904,17 @@ while alive:
 		turn=0
 		#movement
 
-		if curss[CURS_ICE] <= 0:
+		toosick=False
+		if curss[CURS_POISON] == 1:
+			toosick=True
+			mess("You puke. (-20 HP)",4)
+			objects.append([x,y,OBJ_PUKE])
+			hitp (20,True)
+		if curss[CURS_POISON] and randint(0,max(0,200-curss[CURS_POISON])/50) == 0:
+			toosick=True
+			mess("You feel sick and can't move",2)
+
+		if curss[CURS_ICE] <= 0 and not toosick:
 			nx = x
 			ny = y
 			hasmoved = 0
@@ -1761,7 +1938,15 @@ while alive:
 				
 				for e in entities: #hit entities hit enemy
 					if( (e[0]==nx) and (e[1]==ny)):
-						if ( e[3] == 'S')  and curss[CURS_LOVE] > 0:
+						if e[3] == 'g' and e[4].status != GN_DONE:
+							if (len(inventory)<MAXINV) and  (randint(0,2) + (not attributes[ATTR_STRONG_HANDS]))<1:
+								mess("You catch a Gnome")
+								inventory.append([0,0,OBJ_GNOME,e[5]])
+								entities.remove(e)
+								
+							else:
+								mess("The Gnome slips from your hands.")
+						elif ( e[3] == 'S')  and curss[CURS_LOVE] > 0:
 							mess("You are unable to hit the Succubus")
 						else:
 							tpow = atk
@@ -1775,6 +1960,7 @@ while alive:
 				if lvl[nx][ny] == 3: #open doors
 					lvl[nx][ny] = 0
 					mess("You open the door.")
+					floodfill(nx,ny)
 				if lvl[nx][ny] == 4: #exit
 					crawlin = False
 					mess("You descend the stairs...")
@@ -1838,6 +2024,8 @@ while alive:
 							
 				if lvl[nx][ny] == 101: #finale
 					finale()
+				if isnonsolid(lvl[nx][ny]):
+					floodfill(nx,ny)
 
 		#d button drop item
 		if cmd == ord('d') and (len(inventory)+len(equip))>0:
@@ -1875,40 +2063,89 @@ while alive:
 					
 				if it>=len(equip):
 					pos = it - len(equip)
-					sbobs=False
-					if inventory[pos][2] == OBJ_STONE:
-						for e in objects:
-							if (e[2] == OBJ_PLANT) and (e[4] == 1 ) and (e[0]==x) and (e[1]==y):
-								sbobs = True
-					mess("You dropped the "+object_names(inventory[pos]))
-					if lvl[x][y] == 8:
-						mess("...it is consumed by the lava")
-					else:
-						objects.append([x,y]+inventory[pos][2:])
-					del inventory[pos]
-					if sbobs:
-						mess("The stone breaks the Stramonium")
-						mess("Out comes a litte seed...")
-						objects.append([x,y,OBJ_STRAMONIUM_SEED])
-				else:
+					#special droppings
+					if inventory[pos][2] == OBJ_GNOME:
+						mess("You let "+inventory[pos][3].name+" go")
+						gibby = [x,y]+bosses["Gnome"] + [gnomeBrain(),inventory[pos][3]]
+						gibby[4].status = GN_FULL
+						entities.append(gibby)
+						del inventory[pos]
+					else: #ordinary droppings (special effects)
+						sbobs=False
+						if inventory[pos][2] == OBJ_STONE:
+							for e in objects:
+								if (e[2] == OBJ_PLANT) and (e[4] == 1 ) and (e[0]==x) and (e[1]==y):
+									sbobs = True
+						mess("You drop the "+object_names(inventory[pos]))
+						if lvl[x][y] == 8:
+							mess("...it is consumed by the lava")
+						else:
+							objects.append([x,y]+inventory[pos][2:])
+
+						del inventory[pos]
+
+						if sbobs:
+							mess("The stone breaks the Stramonium")
+							mess("Out comes a litte seed...")
+							objects.append([x,y,OBJ_STRAMONIUM_SEED])
+				else: 
 					pos = it
-	                        	mess("You drop the "+object_names(equip[pos][0]))
+	       		                mess("You drop the "+object_names(equip[pos][0]))
 					if lvl[x][y] == 8:
 						mess("...it is consumed by the lava")
 					else:
 						objects.append([x,y]+equip[pos][0][2:])
-        	                        del equip[pos]
+						del equip[pos]
 	
 		
-		#a button
+		#a button pick up objects
 		if cmd == ord('a'):
-			found=False
+			found=[]
 			oc = objects
-			for o in objects:
+			MAXAX = 10
+			ccc = 0
+			for i in range(0,len(oc)):
+				o = oc[i]
 				if ((o[0] == x) and (o[1] == y)):
-					found = True
-					if o[2] == OBJ_CHESTMONSTER:
-						mess("The object explodes in a swarm of enemies")
+					found.append(i)
+					ccc+=1
+				if ccc >= MAXAX:
+					break
+
+			if len(found)==0:
+				o = -1
+				mess("There is nothing here.")
+
+			elif len(found)==1:
+				o = oc[found[0]]
+			else:
+				z = 0
+				while True:
+					h = 5
+					for j in range(0,len(found)):
+						f = found[j]
+						if j == z:
+							c = curses.color_pair(1)
+						else:
+							c = curses.color_pair(0)
+						stdscr.addstr(h,5,object_names(oc[f]),c)
+						h+=1
+					stdscr.refresh()
+					fff = stdscr.getch()
+					if fff == curses.KEY_UP:
+						z = (z-1)%len(found)
+					elif fff == curses.KEY_DOWN:
+						z = (z+1)%len(found)
+					elif fff == ord('\n'):
+						break
+				o = oc[found[z]]
+			
+
+			if o != -1:
+					if o[2] == OBJ_PUKE:
+						mess("Someone else is going to clean that.")
+					elif o[2] == OBJ_CHESTMONSTER:
+						mess("The object explodes in a swarm of enemies",4)
 						w = randint(3,8)
 						koth = []
 						cnt = 0
@@ -1919,6 +2156,8 @@ while alive:
 								cnt +=1
 								px += randint(-1,1)
 								py += randint(-1,1)
+								px = max(0, min(px,LV_W-1))
+								py = max(0, min(py,LV_H-1))
 							koth.append([px,py])
 
 						for j in koth:
@@ -1926,7 +2165,7 @@ while alive:
 						objects.remove(o)
 					elif o[2] == OBJ_PLANT:
 						if additem(o):
-							mess("You picked up a "+object_names(o))
+							mess("You pick up a "+object_names(o))
 							if o[3] == 1:
 								gloves=0
 								for k in equip:
@@ -1934,18 +2173,16 @@ while alive:
 										gloves=1
 								if gloves == 0:
 									hitp(10,True)
-									mess("You got stung by the herb. -10 HP")
+									mess("You got stung by the herb. -10 HP",4)
 							objects.remove(o)
 						else:
-							mess("Your inventory is full")
+							mess("Your inventory is full",3)
 					else:
 						if additem(o):
-       	                                        	mess("You picked up a "+object_names(o))
+       	                                        	mess("You pick up a "+object_names(o))
        	                                        	objects.remove(o)
        	                                	else:
-       	                                        	mess("Your inventory is full")
-			if found==False:
-				mess("There is nothing here.")
+       	                                        	mess("Your inventory is full",3)
 		
 		#cast spell
 		if cmd == ord('c'):
@@ -2021,13 +2258,13 @@ while alive:
 						spellcast(spellbook[l][c][1])
 						mana -= spellbook[l][c][0]
 					else:
-						mess("You don't have the mana for that.")
+						mess("You don't have the mana for that.",3)
 
 
 				
 						
 			else:
-				mess("You don't have any mana to perform magic with")
+				mess("You don't have any mana to perform magic with",3)
 	
 		# use object (0-9)
 		lawlz = False
@@ -2103,16 +2340,25 @@ while alive:
 					stdscr.getch()
 					
 				elif idd == OBJ_BREAD:
-					mess("You eat the bread. +25 HP")
+					mess("You eat the bread. +25 HP",2)
 					hp = min(mxhp,hp+25)
 					del inventory[touse]
 				elif idd == OBJ_GOULASH:
-					mess("You eat the goulash. +50 HP")
+					mess("You eat the goulash. +50 HP",2)
 					hp = min(mxhp,hp+50)
 					del inventory[touse]
 				elif idd == OBJ_PASTA:
-					mess("You eat the pasta. +100 HP")
+					mess("You eat the pasta. +100 HP",2)
 					hp = min(mxhp,hp+100)
+					del inventory[touse]
+				elif idd == OBJ_CARCASS:
+					if randint(0,1)==0:
+						s=inventory[touse][3]*2 + randint(0,2)
+						mess("You eat the carcass (+"+str(s)+" HP)",2)
+						hp = min(mxhp,hp+s)
+					else:
+						mess("The meat makes you horribly sick",3)
+						curss[CURS_POISON] += 60 + randint(0,30)
 					del inventory[touse]
 				elif idd == OBJ_FAIRY_LIVER:
 					b = randint(40,80)
@@ -2143,7 +2389,8 @@ while alive:
 						mess("The herb makes you healthier. (+"+str(40*bonus)+" HP)")
 					elif species == 1:
 						hitp(70*bonus,True)
-						mess("You eat the herb and feel very, very ill...")
+						curss[CURS_POISON] = 150
+						mess("You eat the herb and feel very, very ill...",4)
 					elif species == 2:
 						mana=min(mana+2*bonus,MAXMANA)
 						mess("You eat the Sage. (MANA +"+str(2*bonus)+")")
@@ -2380,7 +2627,6 @@ while alive:
 		if DEBUG:
 			if cmd == ord('n'):
 				crawlin=False
-				mess(str(mypad.inch(30,30)))
 			if cmd == ord('m'):
 				gold=999
 				mana=999
@@ -2417,7 +2663,59 @@ while alive:
 	
 		#move entities
 		for e in entities:
-			if e[3] == 'D': #dragon has different A.I.
+			if e[3] == 'g': #gnomes (no attack)
+				s = e[4].status
+				if s == GN_HIDING:
+					if abs(e[0]-x)<15 and abs(e[1]-y)<15 and randint(0,3)==0 and cansee(e[0],e[1],x,y):
+						if DEBUG:
+							mess("Gnome awake")
+						e[4].status = GN_EMPTY
+				if s == GN_EMPTY:
+					if abs(e[0]-x)<=1 and abs(e[1]-y)<=1:
+						if gold > 0:
+							bott = min(20,gold)
+							gold -= bott
+							mess("A gnome strips you of your gold!",3)
+							e[5].loot = OBJ_GOLD
+						elif len(inventory)>0:
+							ggh = randint(0,len(inventory)-1)
+							mess("A gnome strips you of your "+object_names(inventory[ggh]),3)
+							e[5].loot = inventory[ggh]
+							del inventory[ggh]
+						else:
+							mess("You have nothing to get stolen (that's sad)",3)
+						e[4].status = GN_FULL
+						
+					elif abs(e[0]-x)<19 and abs(e[1]-y)<19:
+							ex = e[0]
+							ey = e[1]
+							factx=-sgn(ex-x)
+							facty=-sgn(ey-y)
+							possible=[[ex,ey+facty],[ex+factx,ey]]
+							possiblec = possible
+							for p in possiblec:
+								if not iswalkable(p[0],p[1]):
+									possible.remove(p)
+							if len(possible)>0:
+								(nx,ny)=choice(possible)
+							if iswalkable(nx,ny):
+								(e[0],e[1])=(nx,ny)
+				
+				if s == GN_FULL:
+					ex = e[0]
+					ey = e[1]
+					factx=sgn(ex-x)
+					facty=sgn(ey-y)
+					possible=[[ex,ey+facty],[ex+factx,ey]]
+					if len(possible)>0:
+						(nx,ny)=choice(possible)
+						(e[0],e[1])=(nx,ny)
+						if not isnonsolid(lvl[nx][ny]):
+							e[4].status = GN_DONE
+
+						
+ 
+			elif e[3] == 'D': #dragon has different A.I.
 				ex = e[0]
 				ey = e[1]
 				if e[8].status == DR_AWAKE:
@@ -2439,7 +2737,7 @@ while alive:
 					if abs(x-e[0]) + abs(y-e[1]) <= 1:    #attack physically
 						led=hitp(e[4])
 						if led>0:
-							mess("The Dragon has hit you. (-"+str(led)+" HP)")
+							mess("The Dragon hits you. (-"+str(led)+" HP)",4)
 						
 				elif e[8].status == DR_ANGRY and e[8].charge == DR_IDLE:
 
@@ -2536,11 +2834,14 @@ while alive:
 						if (abs(ex-x)+abs(ey-y)) == 1:
 							led=hitp(e[4])
 							if led>0:
-								mess("The "+e[2]+" has hit you. (-"+str(led)+" HP)")
+								if randint(0,1) == 0:
+									mess("The "+e[2]+" hits you. (-"+str(led)+" HP)",4)
+								else:
+									mess("The "+e[2]+" strikes you. (-"+str(led)+" HP)",4)
 								if e[3] in freezinganimals:
 									if randint(0,10)==0:
 										curss[CURS_ICE] = randint(5,10)
-										mess("The "+e[2]+" has frozen you")
+										mess("The "+e[2]+" has frozen you",4)
 							else:
 								mess("The "+e[2]+" misses.")
 
@@ -2653,7 +2954,7 @@ if specialending <=1:
 	stdscr.addstr(5,5,"Last messages:")
 	ppp=7
 	for m in reversed(messages):
-		stdscr.addstr(ppp,8,m)
+		stdscr.addstr(ppp,8,m[0])
 		ppp+=1
 
 	stdscr.addstr(13,5,"You made it to floor "+str(stage)+" with "+str(sum(gems))+" emeralds.")

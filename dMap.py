@@ -3,10 +3,49 @@ from random import *
 from math import *
 
 wedidit=True
+
 class dMap:
    def __init__(self):
        self.roomList=[]
        self.cList=[]
+
+   def makeCave(self,w,l,openings):
+	self.caveArr = [[55 for _ in range(l)] for _ in range(w)]
+	(cx,cy) = (randint(1,w-2),randint(1,l-2))
+
+	self.caveArr[cx][cy] = 0
+	for o in openings:
+		sx = (cx>o[0])*2 - 1		
+		sy = (cy>o[1])*2 - 1
+
+		moves = [0 for _ in range(abs(cx-o[0]))] + [1 for _ in range(abs(cy-o[1]))]
+		shuffle(moves)
+		x = o[0]
+		y = o[1]
+		for m in moves:
+			self.caveArr[x][y] = 0
+			if m == 0:
+				x+=sx
+			if m == 1:
+				y+=sy
+		self.caveArr[o[0]][o[1]] = 0
+
+
+	for t in range(10):
+		x = cx
+		y = cy
+	
+		for c in range(0,15):
+			if randint(0,1)==0:
+				x+=randint(-1,1)
+			else:
+				y+=randint(-1,1)
+			if (not x in range(1,w-1)) or (not y in range(1,l-1)):
+				break
+			self.caveArr[x][y] = 0
+		
+	
+
    def makeMap(self,xsize,ysize,fail,b1,b2,mrooms):
        global wedidit
        wedidit = True
@@ -50,7 +89,25 @@ class dMap:
            if len(self.roomList)==mrooms:
                failed=fail
        self.finalJoins()
+
        self.adjustTemple()
+
+       toclean=[]
+       for i in range(0,xsize):
+		for j in range(0,ysize):
+			if self.mapArr[j][i] == 55:
+				clean = True
+				gg = [ (x,y) for x in [i-1,i,i+1] for y in [j-1,j,j+1] ]
+				for g in gg:
+					if (not g[0] in range(0,xsize)) or (not g[1] in range(0,ysize)):
+						continue
+					if self.mapArr[g[1]][g[0]] in [0]:
+						clean = False
+				if clean:
+					toclean.append((i,j))
+       for t in toclean:
+		self.mapArr[t[1]][t[0]] = 1
+
        return wedidit
 
    def makeRoom(self):
@@ -142,8 +199,12 @@ class dMap:
            for j in range(ll): #Then build floor
                for k in range(ww):
                    self.mapArr[ypos+j][xpos+k]=0
-		   if (rty == 6) and ((ww>8) and (ll>8)) and ((j-ll/2)**2 + (k-ww/2)**2 < 4):
+		   if (rty == 6) and ((ww>8) and (ll>8)) and ((j-ll/2)**2 + (k-ww/2)**2 < 4): #add middle column
 			self.mapArr[ypos+j][xpos+k]=walltype
+		   if (rty in [5,6]) and randint(0,1) > 0 and ww>9 and ll>9:
+			for s in [[xpos+1,ypos+1] , [xpos+1,ypos+ll-2] , [xpos+ww-2,ypos+ll-2] , [xpos+ww-2,ypos+1]]:
+				self.mapArr[s[1]][s[0]] = walltype
+  
 	   if(rty == 100):
 		   self.mapArr[ypos+ll/2-1][xpos+ww/2-1]= dragon
 
@@ -264,12 +325,36 @@ class dMap:
         					self.mapArr[(ypos-1)+j][(xpos-1)+k]=99
 			for j in range(ll+2):
 					for k in [0,ww+1]:
+						if self.mapArr[(ypos-1)+j][xpos-1+k] == 1:
+							self.mapArr[(ypos-1)+j][xpos-1+k] = 99
          					if self.mapArr[(ypos-1)+j][(xpos-1)+k] == 0:
 							self.mapArr[(ypos-1)+j][(xpos-1)+k]=3
 			for k in range(ww+2):
 					for j in [0,ll+1]:
 						if self.mapArr[(ypos-1)+j][(xpos-1)+k] == 0:
 							self.mapArr[(ypos-1)+j][(xpos-1)+k]=3
+
+		if t == 5 and randint(0,1)==0   and ll>7 and ww > 7:
+			ops = []
+			doors = [3,4,5]
+			for j in range(ll+2):
+					for k in [0,ww+1]:
+         					if self.mapArr[(ypos-1)+j][(xpos-1)+k] in doors:
+							ops.append([k,j])
+			for k in range(ww+2):
+					for j in [0,ll+1]:
+						if self.mapArr[(ypos-1)+j][(xpos-1)+k] in doors:
+							ops.append([k,j])
+ 
+			print ww,ll
+			print ops
+			self.makeCave(ww+2,ll+2,ops)
+
+
+			for j in range(ll+2):
+				for k in range(ww+2):
+			#		if not self.caveArr[k][j] == 1 :				
+					self.mapArr[ypos-1+j][xpos-1+k] = self.caveArr[k][j]
 
 
    def makeLava(self,xsize,ysize,amt,iters):
@@ -324,4 +409,4 @@ class dMap:
 				self.lavaArr[y][x] = 1
 			else:
 				self.lavaArr[y][x] = 0
-
+	

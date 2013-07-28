@@ -42,6 +42,8 @@ somename= dMap()
 somename.makeMap(startx,starty,110,15,5,60) 
 #somename.makeLava(60,60,0.4,0)
 somename.gayLava(60,60,0.95,30,6)
+openings = [(0,3),(10,0),(19,3),(8,19)]
+somename.makeCave(20,20, openings )
 for y in range(starty):
         line = ""
         for x in range(startx):
@@ -57,11 +59,13 @@ for y in range(starty):
 			line += "H"
 		elif somename.mapArr[y][x]==98:
 			line += "D"
+		elif somename.mapArr[y][x]==55:
+			line += "$"
 		else:
 			line += "?"
 			
         print line
-
+'''
 s=""
 for a in range(starty):
 	for b in range(startx):
@@ -72,4 +76,17 @@ for a in range(starty):
 	s += "\n"
 
 print s
+'''
 
+s=""
+for a in range(20):
+	for b in range(20):
+		if somename.caveArr[a][b]==0:
+                        s += " "
+                elif somename.caveArr[a][b]==55:
+                        s += "$"
+	s += "\n"
+
+print s
+
+print openings
