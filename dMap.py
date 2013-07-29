@@ -10,41 +10,41 @@ class dMap:
        self.cList=[]
 
    def makeCave(self,w,l,openings):
-	self.caveArr = [[55 for _ in range(l)] for _ in range(w)]
-	(cx,cy) = (randint(1,w-2),randint(1,l-2))
+    self.caveArr = [[55 for _ in range(l)] for _ in range(w)]
+    (cx,cy) = (randint(1,w-2),randint(1,l-2))
 
-	self.caveArr[cx][cy] = 0
-	for o in openings:
-		sx = (cx>o[0])*2 - 1		
-		sy = (cy>o[1])*2 - 1
+    self.caveArr[cx][cy] = 0
+    for o in openings:
+        sx = (cx>o[0])*2 - 1        
+        sy = (cy>o[1])*2 - 1
 
-		moves = [0 for _ in range(abs(cx-o[0]))] + [1 for _ in range(abs(cy-o[1]))]
-		shuffle(moves)
-		x = o[0]
-		y = o[1]
-		for m in moves:
-			self.caveArr[x][y] = 0
-			if m == 0:
-				x+=sx
-			if m == 1:
-				y+=sy
-		self.caveArr[o[0]][o[1]] = 0
+        moves = [0 for _ in range(abs(cx-o[0]))] + [1 for _ in range(abs(cy-o[1]))]
+        shuffle(moves)
+        x = o[0]
+        y = o[1]
+        for m in moves:
+            self.caveArr[x][y] = 0
+            if m == 0:
+                x+=sx
+            if m == 1:
+                y+=sy
+        self.caveArr[o[0]][o[1]] = 0
 
 
-	for t in range(10):
-		x = cx
-		y = cy
-	
-		for c in range(0,15):
-			if randint(0,1)==0:
-				x+=randint(-1,1)
-			else:
-				y+=randint(-1,1)
-			if (not x in range(1,w-1)) or (not y in range(1,l-1)):
-				break
-			self.caveArr[x][y] = 0
-		
-	
+    for t in range(10):
+        x = cx
+        y = cy
+    
+        for c in range(0,15):
+            if randint(0,1)==0:
+                x+=randint(-1,1)
+            else:
+                y+=randint(-1,1)
+            if (not x in range(1,w-1)) or (not y in range(1,l-1)):
+                break
+            self.caveArr[x][y] = 0
+        
+    
 
    def makeMap(self,xsize,ysize,fail,b1,b2,mrooms):
        global wedidit
@@ -60,33 +60,33 @@ class dMap:
            p=self.placeRoom(l,w,x,y,xsize,ysize,6,0)
        failed=0
        while failed<fail: #The lower the value that failed< , the smaller the dungeon
-           chooseRoom=randrange(len(self.roomList))
-           ex,ey,ex2,ey2,et=self.makeExit(chooseRoom)
-           feature=randrange(100)
-	   if feature<b2:
-	       w,l,t=self.makeTemple()
-           elif feature<b1: #Begin feature choosing (more features to be added here)
+            chooseRoom=randrange(len(self.roomList))
+            ex,ey,ex2,ey2,et=self.makeExit(chooseRoom)
+            feature=randrange(100)
+            if feature<b2:
+                 w,l,t=self.makeTemple()
+            elif feature<b1: #Begin feature choosing (more features to be added here)
                w,l,t=self.makeCorridor()
-	   elif feature<b1+5:
-		w,l,t=self.makeHall()
-           else:
-               w,l,t=self.makeRoom()
-           roomDone=self.placeRoom(l,w,ex2,ey2,xsize,ysize,t,et)
-           if roomDone==0: #If placement failed increase possibility map is full
+            elif feature<b1+5:
+                w,l,t=self.makeHall()
+            else:
+                w,l,t=self.makeRoom()
+            roomDone=self.placeRoom(l,w,ex2,ey2,xsize,ysize,t,et)
+            if roomDone==0: #If placement failed increase possibility map is full
                failed+=1
-           elif roomDone==2: #Possiblilty of linking rooms
+            elif roomDone==2: #Possiblilty of linking rooms
                if self.mapArr[ey2][ex2]==0:
                    if randrange(100)<7:
                        self.makePortal(ex,ey)
                    failed+=1
-           else: #Otherwise, link up the 2 rooms
+            else: #Otherwise, link up the 2 rooms
                self.makePortal(ex,ey)
                failed=0
                if t<5:
                    tc=[len(self.roomList)-1,ex2,ey2,t]
                    self.cList.append(tc)
                    self.joinCorridor(len(self.roomList)-1,ex2,ey2,t,50)
-           if len(self.roomList)==mrooms:
+            if len(self.roomList)==mrooms:
                failed=fail
        self.finalJoins()
 
@@ -94,19 +94,19 @@ class dMap:
 
        toclean=[]
        for i in range(0,xsize):
-		for j in range(0,ysize):
-			if self.mapArr[j][i] == 55:
-				clean = True
-				gg = [ (x,y) for x in [i-1,i,i+1] for y in [j-1,j,j+1] ]
-				for g in gg:
-					if (not g[0] in range(0,xsize)) or (not g[1] in range(0,ysize)):
-						continue
-					if self.mapArr[g[1]][g[0]] in [0]:
-						clean = False
-				if clean:
-					toclean.append((i,j))
+        for j in range(0,ysize):
+            if self.mapArr[j][i] == 55:
+                clean = True
+                gg = [ (x,y) for x in [i-1,i,i+1] for y in [j-1,j,j+1] ]
+                for g in gg:
+                    if (not g[0] in range(0,xsize)) or (not g[1] in range(0,ysize)):
+                        continue
+                    if self.mapArr[g[1]][g[0]] in [0]:
+                        clean = False
+                if clean:
+                    toclean.append((i,j))
        for t in toclean:
-		self.mapArr[t[1]][t[0]] = 1
+        self.mapArr[t[1]][t[0]] = 1
 
        return wedidit
 
@@ -114,25 +114,25 @@ class dMap:
        """Randomly produce room size"""
        rtype=5
        if randint(0,4) == 0:
-		rwide = 20
-		rlong = 20
+        rwide = 20
+        rlong = 20
        else:
-       		rwide=randrange(8)+3
-       		rlong=randrange(8)+3
+            rwide=randrange(8)+3
+            rlong=randrange(8)+3
        return rwide,rlong,rtype
 
    def makeHall(self):
-	rtype=6
-	rwide=11+randrange(3)
-	rlong=11+randrange(3)
-	return rwide,rlong,rtype   
+    rtype=6
+    rwide=11+randrange(3)
+    rlong=11+randrange(3)
+    return rwide,rlong,rtype   
 
    def makeTemple(self):
-	rtype=100
-	saas=randrange(3)+9
-	rwide=saas
-	rlong=saas
-	return rwide,rlong,rtype
+    rtype=100
+    saas=randrange(3)+9
+    rwide=saas
+    rlong=saas
+    return rwide,rlong,rtype
 
    def makeCorridor(self):
        """Randomly produce corridor length and heading"""
@@ -188,10 +188,10 @@ class dMap:
            temp=[ll,ww,xpos,ypos,rty]
            self.roomList.append(temp)
 
-	   walltype = 2
-	   if rty == 100:
-		walltype = 99
-	   dragon = 98
+           walltype = 2
+           if rty == 100:
+                walltype = 99
+           dragon = 98
 
            for j in range(ll+2): #Then build walls
                for k in range(ww+2):
@@ -199,16 +199,16 @@ class dMap:
            for j in range(ll): #Then build floor
                for k in range(ww):
                    self.mapArr[ypos+j][xpos+k]=0
-		   if (rty == 6) and ((ww>8) and (ll>8)) and ((j-ll/2)**2 + (k-ww/2)**2 < 4): #add middle column
-			self.mapArr[ypos+j][xpos+k]=walltype
-		   if (rty in [5,6]) and randint(0,1) > 0 and ww>9 and ll>9:
-			for s in [[xpos+1,ypos+1] , [xpos+1,ypos+ll-2] , [xpos+ww-2,ypos+ll-2] , [xpos+ww-2,ypos+1]]:
-				self.mapArr[s[1]][s[0]] = walltype
+                   if (rty == 6) and ((ww>8) and (ll>8)) and ((j-ll//2)**2 + (k-ww//2)**2 < 4): #add middle column
+                            self.mapArr[ypos+j][xpos+k]=walltype
+           if (rty in [5,6]) and randint(0,1) > 0 and ww>9 and ll>9:
+            for s in [[xpos+1,ypos+1] , [xpos+1,ypos+ll-2] , [xpos+ww-2,ypos+ll-2] , [xpos+ww-2,ypos+1]]:
+                self.mapArr[s[1]][s[0]] = walltype
   
-	   if(rty == 100):
-		   self.mapArr[ypos+ll/2-1][xpos+ww/2-1]= dragon
+           if(rty == 100):
+                self.mapArr[ypos+ll//2-1][xpos+ww//2-1]= dragon
 
-	
+    
        return canPlace #Return whether placed is true/false
    def makeExit(self,rn):
        global wedidit
@@ -239,9 +239,9 @@ class dMap:
                ry2=ry
            if self.mapArr[ry][rx] in [2,99]: #If space is a wall, exit
                break
-	   safecount +=1
-	   if safecount >= 3000:
-		wedidit = (wedidit) and False
+           safecount +=1
+       if safecount >= 3000:
+         wedidit = (wedidit) and False
        return rx,ry,rx2,ry2,rw
    def makePortal(self,px,py):
        """Create doors in walls"""
@@ -316,97 +316,94 @@ class dMap:
        for x in self.cList:
            self.joinCorridor(x[0],x[1],x[2],x[3],10)
    def adjustTemple(self):
-	for r in self.roomList:
-		(ll,ww,xpos,ypos,t) = r
-		if t == 100:
-			for j in range(ll+2): 
-	        		for k in range(ww+2):
-        				if self.mapArr[(ypos-1)+j][(xpos-1)+k]==2:
-        					self.mapArr[(ypos-1)+j][(xpos-1)+k]=99
-			for j in range(ll+2):
-					for k in [0,ww+1]:
-						if self.mapArr[(ypos-1)+j][xpos-1+k] == 1:
-							self.mapArr[(ypos-1)+j][xpos-1+k] = 99
-         					if self.mapArr[(ypos-1)+j][(xpos-1)+k] == 0:
-							self.mapArr[(ypos-1)+j][(xpos-1)+k]=3
-			for k in range(ww+2):
-					for j in [0,ll+1]:
-						if self.mapArr[(ypos-1)+j][(xpos-1)+k] == 0:
-							self.mapArr[(ypos-1)+j][(xpos-1)+k]=3
+    for r in self.roomList:
+        (ll,ww,xpos,ypos,t) = r
+        if t == 100:
+            for j in range(ll+2): 
+                    for k in range(ww+2):
+                        if self.mapArr[(ypos-1)+j][(xpos-1)+k]==2:
+                            self.mapArr[(ypos-1)+j][(xpos-1)+k]=99
+            for j in range(ll+2):
+                    for k in [0,ww+1]:
+                        if self.mapArr[(ypos-1)+j][xpos-1+k] == 1:
+                            self.mapArr[(ypos-1)+j][xpos-1+k] = 99
+                            if self.mapArr[(ypos-1)+j][(xpos-1)+k] == 0:
+                                self.mapArr[(ypos-1)+j][(xpos-1)+k]=3
+            for k in range(ww+2):
+                    for j in [0,ll+1]:
+                        if self.mapArr[(ypos-1)+j][(xpos-1)+k] == 0:
+                            self.mapArr[(ypos-1)+j][(xpos-1)+k]=3
 
-		if t == 5 and randint(0,1)==0   and ll>7 and ww > 7:
-			ops = []
-			doors = [3,4,5]
-			for j in range(ll+2):
-					for k in [0,ww+1]:
-         					if self.mapArr[(ypos-1)+j][(xpos-1)+k] in doors:
-							ops.append([k,j])
-			for k in range(ww+2):
-					for j in [0,ll+1]:
-						if self.mapArr[(ypos-1)+j][(xpos-1)+k] in doors:
-							ops.append([k,j])
+        if t == 5 and randint(0,1)==0   and ll>7 and ww > 7:
+            ops = []
+            doors = [3,4,5]
+            for j in range(ll+2):
+                    for k in [0,ww+1]:
+                            if self.mapArr[(ypos-1)+j][(xpos-1)+k] in doors:
+                                ops.append([k,j])
+            for k in range(ww+2):
+                    for j in [0,ll+1]:
+                        if self.mapArr[(ypos-1)+j][(xpos-1)+k] in doors:
+                            ops.append([k,j])
  
-			print ww,ll
-			print ops
-			self.makeCave(ww+2,ll+2,ops)
+            self.makeCave(ww+2,ll+2,ops)
 
 
-			for j in range(ll+2):
-				for k in range(ww+2):
-			#		if not self.caveArr[k][j] == 1 :				
-					self.mapArr[ypos-1+j][xpos-1+k] = self.caveArr[k][j]
+            for j in range(ll+2):
+                for k in range(ww+2):
+            #       if not self.caveArr[k][j] == 1 :                
+                    self.mapArr[ypos-1+j][xpos-1+k] = self.caveArr[k][j]
 
 
    def makeLava(self,xsize,ysize,amt,iters):
-		self.lavaArr = [[int(random() < amt) for i in range(0,ysize)] for j in range(0,xsize)]
-		self.tempArr = [[self.lavaArr[i][j] for i in range(0,ysize)] for j in range(0,xsize)]
-		for i in range(0,1):
-			print i+1
-			for x in range(0,xsize):
-				if x == 0 or x == xsize-1:
-					for y in range(0,ysize):
-						self.tempArr[y][x] = 0
-				else:
-					for y in range(0,ysize):
-						if y== 0 or y == ysize-1:
-							self.tempArr[y][x] = 0
-						else:
-#							s = sum([self.lavaArr[ups][x-1:x+2] for ups in range(y-1,y+2)]) - self.lavaArr[y][x]
-							s = self.lavaArr[y-1][x-1] + self.lavaArr[y-1][x] + self.lavaArr[y-1][x+1] + self.lavaArr[y][x-1] + self.lavaArr[y][x+1] + self.lavaArr[y+1][x-1] + self.lavaArr[y+1][x] + self.lavaArr[y+1][x+1]
+        self.lavaArr = [[int(random() < amt) for i in range(0,ysize)] for j in range(0,xsize)]
+        self.tempArr = [[self.lavaArr[i][j] for i in range(0,ysize)] for j in range(0,xsize)]
+        for i in range(0,1):
+            for x in range(0,xsize):
+                if x == 0 or x == xsize-1:
+                    for y in range(0,ysize):
+                        self.tempArr[y][x] = 0
+                else:
+                    for y in range(0,ysize):
+                        if y== 0 or y == ysize-1:
+                            self.tempArr[y][x] = 0
+                        else:
+#                           s = sum([self.lavaArr[ups][x-1:x+2] for ups in range(y-1,y+2)]) - self.lavaArr[y][x]
+                            s = self.lavaArr[y-1][x-1] + self.lavaArr[y-1][x] + self.lavaArr[y-1][x+1] + self.lavaArr[y][x-1] + self.lavaArr[y][x+1] + self.lavaArr[y+1][x-1] + self.lavaArr[y+1][x] + self.lavaArr[y+1][x+1]
 
-							if self.lavaArr[y][x] == 0:
-								if s>5:
-									self.tempArr[y][x] = 1
-								else:
-									self.tempArr[y][x] = 0
-							else:
-								if s>4:
-									self.tempArr[y][x] = 1
-								else:
-									self.tempArr[y][x] = 0
-			
-			for x in range(0,xsize):
-				for y in range(0,ysize):
-					self.lavaArr[y][x] = self.tempArr[y][x]
+                            if self.lavaArr[y][x] == 0:
+                                if s>5:
+                                    self.tempArr[y][x] = 1
+                                else:
+                                    self.tempArr[y][x] = 0
+                            else:
+                                if s>4:
+                                    self.tempArr[y][x] = 1
+                                else:
+                                    self.tempArr[y][x] = 0
+            
+            for x in range(0,xsize):
+                for y in range(0,ysize):
+                    self.lavaArr[y][x] = self.tempArr[y][x]
 
    def gayLava(self,xsize,ysize,thresh,balls,rad):
-	#place metaballs
-	mb = []
-	for c in range(0,balls):
-		mb.append(  ( randint(0,xsize-1)  ,  randint(0,ysize-1)   )   )
+    #place metaballs
+    mb = []
+    for c in range(0,balls):
+        mb.append(  ( randint(0,xsize-1)  ,  randint(0,ysize-1)   )   )
 
-	self.lavaArr = [[0]*ysize for _ in range(xsize) ]
+    self.lavaArr = [[0]*ysize for _ in range(xsize) ]
 
-	for x in range(0,xsize):
-		for y in range(0,ysize):
-			value = float(0)
-			for m in mb:
-				rq = (x-m[0])**2 + (y-m[1])**2 
-				if rq < rad**2:
-						value += (1 - float(rq)/float(rad**2))**2
-		#	print value
-			if value > thresh:
-				self.lavaArr[y][x] = 1
-			else:
-				self.lavaArr[y][x] = 0
-	
+    for x in range(0,xsize):
+        for y in range(0,ysize):
+            value = float(0)
+            for m in mb:
+                rq = (x-m[0])**2 + (y-m[1])**2 
+                if rq < rad**2:
+                        value += (1 - float(rq)//float(rad**2))**2
+        #   print value
+            if value > thresh:
+                self.lavaArr[y][x] = 1
+            else:
+                self.lavaArr[y][x] = 0
+    
