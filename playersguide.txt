@@ -1,23 +1,52 @@
 (questa guida è a caso e temporanea e sarà fatta più meglio più tardi)
 
-Hole is a roguelike turn-based game.
+Hole is a roguelike(like) turn-based game.
 
+
+---HOW TO DOWNLOAD---
+
+Hole is frequently updated. One simple way to get the latest stable (kinda) version is to download and extract this archive:
+https://github.com/rantonels/hole/archive/master.zip
+
+A more elegant (and quick) method is to use git. On Linux:
+
+$ sudo apt-get install git
+
+and then run:
+
+$ cd ~
+$ git clone https://github.com/rantonels/hole.git
+
+everytime you want to update Hole.
 
 
 
 ---HOW TO RUN---
 
+
 LINUX / MAC OS
 
+First of all, choose a terminal emulator (programs like gnome-terminal, xterm, etc.) that you like and has basic color support. Configure it as you please, selecting a font and size that allows for a screen size of at least 67x26.
+
+Hole will run on Python 2.* and Python 3.3. Only using the latter you will be able to access Unicode mode, because of a linking bug in the curses module for Python 2.
+
 Make sure you have python and python-curses installed (they should already be.) If you have apt-get (ubuntu, mint, etc...) run:
-sudo apt-get install python
+
+$ sudo apt-get install python
 
 To run the game use:
 
-cd ~/Dropbox/pathtogamefiles
-./hole.XXX		(XXX is the version number)
+$ cd ~/hole
+$ ./hole
 
-you should be greeted by the title card.
+you should be greeted by the encoding selection menu.
+
+If it complains about not finding python, OR you want to run it with a different python version, run it explicitly as a python script, for example:
+
+$ /opt/python3.3/bin/python3 hole 
+
+(assuming you have python3.3 installed in that directory)
+
 
 
 WINDOWS
@@ -34,16 +63,53 @@ PYTHON HOLE.XXX		(XXX is the version number)
 
 
 
+---ASCII/UNICODE---
+
+Hole was originally written using the ASCII charset. This is a very limited but universally supported set of symbols. Since version 1.0.6, a Unicode mode is included, which extend greatly the set of available glyphs and thus provides more interesting graphics. However, it comes with a cost: Hole has to be run with Python3.3, and the terminal emulator and his font must support unicode. If you want to give it a try, you can select UNICODE at the beginning of the game execution. If this menu popping up every damn time annoys you, bypass it by appending the options --ascii or --unicode when running hole on the command line.
+
+When playing in Unicode mode, be wary that symbols are different from those described in this guide.
+
+
+
+
+---CREATING A NEW CHARACTER---
+
+Creating a character might be intimidating if you haven't even started playing. Get confortable with the game concepts by playing a couple of games with the default PC.
+
+Provided you don't choose to use the default character, you will have to build one. The parameters who influence gameplay are:
+
+- Gender
+- Attributes
+
+Male players gain in ATK much quickly than Females when leveling up, however Females are immune from the Love Curse from Succubi.
+
+Attributes grant some special permanent ability to the player; you can choose at most 2. They are:
+
+Hawk Eye        extends your Field Of View (see more distant objects)
+Dragonborn      half damage when walking on lava
+Pious           Mana Drops always yield +2 MANA
+Strong Hands    reduce probability of being stripped of items when attacked; increase probability of picking up gnomes
 
 
 
 ---BASICS---
 
 @ - Player
-# - Wall
+#,$ - Walls
 v - Exit
 
 Find the exit to go to the next floor. Go fast or you'll drown in the water.
+
+
+
+
+
+---THE ANNOYING BLUE DOTS---
+
+These things represent your Field Of View (FOV), that is, the places you can currently see. You won't be able to see what's happening (e.g.: monsters, objects) outside your FOV. Now, you might find these dots annoying: you can turn them off with the V key (this will NOT deactivate the FOV dynamics.)
+
+
+
 
 
 
@@ -51,9 +117,9 @@ Find the exit to go to the next floor. Go fast or you'll drown in the water.
 
 A more detailed look at other type of element of the map:
 
-=		Door		just walk on it to open it
-$		Gift Shop	walk on it to buy items from gold. Sold items change with the floor you're in
-~ (yellow)	Lava		will deal you damage (depending on your max. HP) unless you are protected
+=		        Door		just walk on it to open it
+$ (red/white)   Gift Shop	walk on it to buy items from gold. Sold items change with the floor you're in
+~ (yellow)	    Lava		will deal you damage (depending on your max. HP) unless you are protected
 
 After a certain number of turns (check the I panel) water will enter the dungeon and start filling it floor by floor. Water (blue ~) will not hurt you, but it will costrain your movement. Water imposes strict bounds on the time you can spend in each floor of the dungeon. You can stop water with a Winter Spell, at least until you descend the stairs.
 
@@ -72,22 +138,25 @@ U - Use/equip items
 C - Cast spell
 P - Commit suicide
 I - Check game progress, found emeralds, experience points, curse status...
+V - Toggle FOV dots
 
 Whatever the command you give, existing or not, successful or not, you lose your turn
 
 
 
 
----ENEMIES--
+---ENEMIES---
+
+Enemies are red letters, except for gnomes. When an enemy is killed (by any means) you are dealt experience points; the amount depends exclusively on the race of the enemy.
 
 *ANIMALS (a, b ... z)
-Red underscore letters are animals (basic enemies.) An a (Ant) is the weakest, a z (Zebra) is the toughest.
+Red lowercase letters are animals (basic enemies.) An a (Ant) is the weakest, a z (Zebra) is the toughest. Note that n,p,q,s,v,x and z have the ability to freeze you.
 
 *SUCCUBI (S)
 Succubi cast a curse (Love) as soon as they attack you, if you are male. If you are in love you cannot attack any Succubus physically (you can still move or use magic though.)
 
 *DRAGONS (D)
-Occasionally you can find golden rooms with a dragon (red D) guarding a Chest (which is for now empty.), 
+Occasionally you can find golden rooms with a dragon (red D.) These are very powerful creatures with a complex behaviour, and can blow fire if they are angered (this deals quite a lot of damage, of course.) Dragons drop Dragon Scales, which can be worn to walk safely on lava.
 
 *FAIRIES (F)
 Fairies are rare and shy creatures which often teleport away. Slaying a fairy will produce a Fairy Liver, which is a source of Mana.
@@ -98,6 +167,8 @@ False objects take the form of other objects; when you try to pick them up, they
 *ICE TROLLS (I)
 Powerful monsters that appear in a level right after the casting of a Winter Spell.
 
+*GNOMES (green g)
+Gnomes pop up from dirt in caves, try to steal money from you (or an item, if you are broke), then flee back in their tunnels. They can't hurt you, and are immune to attacks or magic. You can try picking them up by walking on them, and they will show up in your inventory. Every gnome has a different name and personality. {By "using" a Gnome with the U key, you can search the gnome for loot (your stolen items, for example) or ask him information.} You can then free the Gnome by dropping him, and he will escape quickly.  *information in {} curly brackets has yet to be implemented.*
 
 
 
@@ -112,7 +183,7 @@ GOLD - Yellow
 Gold is found in yellow nuggets (*). Just walk on it to pick it up.
 
 MANA DROPS - Blue
-A mana drop is a blue asterisk. It restores 1 mana point.
+A mana drop is a blue asterisk. It restores 1 or 2 mana points (always 2 if you have the "Pious" attribute.)
 
 EMERALDS - Green
 There is one emerald in every level. You can check which emeralds you have collected with the I command. They will grant you a special advantage in the last stage.
@@ -122,7 +193,7 @@ There is one emerald in every level. You can check which emeralds you have colle
 
 You can pick up other items by walking over them and pressing A: they will appear in your inventory. You can use them by pressing the digit relative to their inventory slot (e.g.: you can use the bread you are given by default by pressing 0.) For equippable items, using means equipping. You can drop items with the D key, followed by number - or A-C for equipped items. You can't unequip items and put them back in your inventory, you have to throw them away.
 
-HERBS - Y
+HERBS - green Y
 
 Herbs can belong to many species:
 
@@ -151,7 +222,7 @@ Books named after a spell (Fire, Teleport, etc.) perform the corresponding spell
 *Book of Botany		identify all herbs in your inventory
 *Book of Geography	displays relative position of the exit
 
-MAGIC HANDBOOK - =
+MAGIC HANDBOOK - purple =
 
 This allows you to learn a new spell in a given category of your choice.
 
@@ -173,6 +244,10 @@ Food restores health points.
 0	Bread		+25  HP
 Q	Goulash		+50  HP
 W	Pasta		+100 HP
+
+a   Carcass     variable
+
+A Carcass is occasionally dropped by dying animals. It can be eaten, but it has a probability of poisoning the player (see Curses). If the feasting is successful, some health is restored; Carcasses of higher animals yield more HP. 
 
 
 FAIRY LIVER - &
@@ -214,18 +289,18 @@ Most spell have an enhanced effect if performed holding a Magic Wand.
 
 -SPELLS
 
-SPELL		BASIC EFFECT								WITH WAND
+SPELL		    BASIC EFFECT					    		                    	WITH WAND
 --MIND CATEGORY--
-Teleport	teleport the player somewhere else (at random) in the same floor	
-Healing		heals the player							more healing
+Teleport    	teleport the player somewhere else (at random) in the same floor	
+Healing	    	heals the player					                        		more healing
 Transmigration	teleport to a close given location in a cardinal direction (*)		more range
 --BODY CATEGORY--
-Shockwave	pushes enemies away and smashes them on walls				more push and damage
-Fire		hits all enemies in an area around the player				more damage
-Winter		freezes the water until you descend the stairs (*)
+Shockwave   	pushes enemies away and smashes them on walls				        more push and damage
+Fire	    	hits all enemies in an area around the player				        more damage
+Winter	    	freezes the water until you descend the stairs (*)
 --LIGHT CATEGORY--
-Thunder		hits the closest enemy with a thunder					more damage
-Clairvoyance	show the inside of rooms close to you					show the entire floor
+Thunder		    hits the closest enemy with a thunder				            	more damage
+Clairvoyance	show the inside of rooms close to you					            show the entire floor
 
 
 * these spells can have serious adverse effects. Transmigrating in a wall or solid object (including stairs) kills you immediatly; if you are instead sent into the same spot as an enemy, you deal him 50 HP of damage, but your own HP are halved (fragging). When you cast the very powerful Winter Spell instead, Ice Trolls make their appearance in the level.
@@ -235,11 +310,14 @@ Clairvoyance	show the inside of rooms close to you					show the entire floor
 
 ---CURSES---
 
-Curses are prolonged negative effects on the player. They are of various nature, can coexist, and vanish in a set number of turns. The current curses and number of turns left for each curse is displayed in the I panel (press I.) They are usually inflicted on the player when he is hit by particular enemies.
+Curses are prolonged negative effects on the player. They are of various nature, can coexist, and vanish in a set number of turns. The current curses and number of turns left for each curse is displayed in the I panel (press I) or in a simplified form just right of your name. They are usually inflicted on the player when he is hit by particular enemies, or consumes particular items.
 
-CURSE	EFFECT				CAUSE
-Ice	no walking or physical attack	hit by n,p,q,s,v,x,z or I		
+CURSE	EFFECT			            	CAUSE
+Ice	    no walking or physical attack	hit by n,p,q,s,v,x,z or I		
 Love	can't hit Succubi physically	hit by S
+Poison  at times can't walk or attack,  eating Carcass
+        ends by puking (-20 HP)
+
 
 
 ---SHOPS---
