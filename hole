@@ -3,6 +3,8 @@
 
 import sys
 
+sys.setrecursionlimit(60*60)
+
 DEBUG = False
 UNICODE = -1
 if len(sys.argv)>1:
@@ -430,6 +432,8 @@ converter = {
 
 55:11,
 
+66:8,
+
 98:6,
 99:5
 }
@@ -693,9 +697,9 @@ def spellcast(n):
 
             #0 3 10
 
-                    tget = count[i]
-                    mess("You cast a Thunder Spell on the "+entities[tget][2]+str(leclos))
-                    hite(entities[tget],int((3+atk//2)*(1+wand)))
+            tget = count[i]
+            mess("You cast a Thunder Spell on the "+entities[tget][2]+str(leclos))
+            hite(entities[tget],int((3+atk//2)*(1+wand)))
 
         else:
             mess("You cast a Thunder Spell that goes nowhere")      
@@ -1076,7 +1080,7 @@ def dropshit(x,y,lv):
 
 def hite(e,force):
     global slaindragons
-    if e[3] == 'g':
+    if e[2] == "Gnome":
         return
     damage = max(0,force-randint(0,e[5]))
     e[6] = max(0,e[6]-force)
@@ -1279,6 +1283,114 @@ def confloodfill(xs,ys,ite=-1):
 def fag(xp,yp):
     global x,y
     return fog[xp][yp]# ( (xp in range(x-4,x+4)) and (yp in range(y-4,y+4)))
+
+FOV_RADIUS = 10
+
+dungeon =  ["###########################################################",
+            "#...........#.............................................#",
+            "#...........#........#....................................#",
+            "#.....................#...................................#",
+            "#....####..............#..................................#",
+            "#.......#.......................#####################.....#",
+            "#.......#...........................................#.....#",
+            "#.......#...........##..............................#.....#",
+            "#####........#......##..........##################..#.....#",
+            "#...#...........................#................#..#.....#",
+            "#...#............#..............#................#..#.....#",
+            "#...............................#..###############..#.....#",
+            "#...............................#...................#.....#",
+            "#...............................#...................#.....#",
+            "#...............................#####################.....#",
+            "#.........................................................#",
+            "#.........................................................#",
+            "###########################################################"]
+
+class Map(object):
+    # Multipliers for transforming coordinates to other octants:
+    mult = [
+                [1,  0,  0, -1, -1,  0,  0,  1],
+                [0,  1, -1,  0,  0, -1,  1,  0],
+                [0,  1,  1,  0,  0, -1, -1,  0],
+                [1,  0,  0,  1, -1,  0,  0, -1]
+            ]
+    def __init__(self):
+        global LV_W,LV_H
+        self.width, self.height = LV_W,LV_H
+        self.light = []
+        for i in range(self.height):
+            self.light.append([0] * self.width)
+        self.flag = 0
+    def square(self, x, y):
+        global lvl
+        return lvl[x][y]
+    def blocked(self, x, y):
+        global lvl
+        return (x < 0 or y < 0
+                or x >= self.width or y >= self.height
+                or not isnonsolid(lvl[x][y]))
+    def lit(self, cx, cy):
+        global fow,x,y,lvl,clairvoying,attributes
+
+        if clairvoying == 1:
+         if (cx-x)**2 + (cy-y)**2 <= (20)**2:
+             return True
+         else:
+            return False
+        elif clairvoying == 2:
+            return True
+
+        return self.light[cy][cx] == self.flag
+    def set_lit(self, x, y):
+        if 0 <= x < self.width and 0 <= y < self.height:
+            self.light[y][x] = self.flag
+    def _cast_light(self, cx, cy, row, start, end, radius, xx, xy, yx, yy, id):
+        "Recursive lightcasting function"
+        if start < end:
+            return
+        radius_squared = radius*radius
+        for j in range(row, radius+1):
+            dx, dy = -j-1, -j
+            blocked = False
+            while dx <= 0:
+                dx += 1
+                # Translate the dx, dy coordinates into map coordinates:
+                X, Y = cx + dx * xx + dy * xy, cy + dx * yx + dy * yy
+                # l_slope and r_slope store the slopes of the left and right
+                # extremities of the square we're considering:
+                l_slope, r_slope = (dx-0.5)/(dy+0.5), (dx+0.5)/(dy-0.5)
+                if start < r_slope:
+                    continue
+                elif end > l_slope:
+                    break
+                else:
+                    # Our light beam is touching this square; light it:
+                    if dx*dx + dy*dy < radius_squared:
+                        self.set_lit(X, Y)
+                    if blocked:
+                        # we're scanning a row of blocked squares:
+                        if self.blocked(X, Y):
+                            new_start = r_slope
+                            continue
+                        else:
+                            blocked = False
+                            start = new_start
+                    else:
+                        if self.blocked(X, Y) and j < radius:
+                            # This is a blocking square, start a child scan:
+                            blocked = True
+                            self._cast_light(cx, cy, j+1, start, l_slope,
+                                             radius, xx, xy, yx, yy, id+1)
+                            new_start = r_slope
+            # Row is scanned; do next row unless last square was blocked:
+            if blocked:
+                break
+    def do_fov(self, x, y, radius):
+        "Calculate lit squares from the given location and radius"
+        self.flag += 1
+        for oct in range(8):
+            self._cast_light(x, y, 1, 1.0, 0.0, radius,
+                             self.mult[0][oct], self.mult[1][oct],
+                             self.mult[2][oct], self.mult[3][oct], 0)
 
 def checkfow(a,b):
     global fow,x,y,lvl,clairvoying,attributes
@@ -1487,6 +1599,7 @@ x=-1
 y=-1
 clairvoying=False
 visibility_dots=True
+fovBrain = Map()
 while alive:
     if waterfrozen:
         waterfrozen=False
@@ -1518,14 +1631,13 @@ while alive:
 
             reasons = []
 
-            dragonfactor = 4 * stage**2//(50**2)
+            dragonfactor = 2 * (stage**2)//(50**2)
             if DEBUG and stage==1:
-                dragonfactor = 8
+                dragonfactor = 2
             
             lestries = 0
             while not mapper.makeMap(LV_W,LV_H,110,10+dragonfactor,dragonfactor,60):
                 lestries+=1
-
             lvl = [[converter[mapper.mapArr[j][i]] for i in range(0,LV_W)] for j in range(0,LV_H)]
             
             #correct naked edges
@@ -1763,7 +1875,7 @@ while alive:
         if stage > 2:
             for i in range(0,LV_W):
                 for j in range(0,LV_H):
-                    if lvl[i][j] == 11 and randint(0,20) == 0:
+                    if lvl[i][j] == 11 and randint(0,40) == 0:
                         entities.append([i,j]+bosses["Gnome"]+[gnomeBrain(),gnomeStuff()])
 
 
@@ -1833,8 +1945,8 @@ while alive:
     while alive and crawlin:
         #DISPLAY / DRAW
 
-        #clear fow
-        fow = [[0]*LV_H]*LV_W
+        #do fow
+        '''fow = [[0]*LV_H]*LV_W
 
         for i in range(0,LV_W):
             for j in range(0,LV_H):
@@ -1842,10 +1954,18 @@ while alive:
 
 #       for i in range(x-1,x+2):
 #           for j in range(y-1,y+2):
-#               fow[i][j] = 2
+#               fow[i][j] = 2'''
+
+        fovBrain.do_fov(x,y,(11 + attributes[ATTR_HAWK_EYE]*5))
         
 
         #draw level draw map display level display map
+        
+        visdotchar = '.'
+        if UNICODE:
+            visdotchar = u'⋅'
+
+
         mypad.erase()
         for i in range(max(0,x-LW_W),min(x+LW_W,LV_W)):
             for j in range(max(0,y-LW_H),min(y+LW_H,LV_H-1)):
@@ -1854,8 +1974,8 @@ while alive:
                     if lvl[i][j] == 100 and waterfrozen:    
                         mypad.addch(j,i,'/' , curses.color_pair(15))
                     elif visibility_dots and lvl[i][j] == 0:
-                            if checkfow(i,j):
-                                mypad.addch(j,i,'.',curses.color_pair(8))
+                            if fovBrain.lit(i,j):
+                                mypad.addstr(j,i,visdotchar,curses.color_pair(8))
                     elif UNICODE and lvl[i][j] == 1:
                         total = iswall(i+1,j) + 2*iswall(i,j-1) + 4*iswall(i-1,j) + 8*iswall(i,j+1)
                         mypad.addstr(j,i,WALLS[total][0].encode('utf-8'),curses.color_pair(WALLS[total][1]))
@@ -1869,7 +1989,7 @@ while alive:
                     mypad.addch(j,i,'+')
         #draw objects
         for o in objects:
-            if fog[o[0]][o[1]] and checkfow(o[0],o[1]):
+            if fog[o[0]][o[1]] and fovBrain.lit(o[0],o[1]):
                     if o[2] == OBJ_CHESTMONSTER and o[3] == 0:
                         mypad.addch(o[1],o[0],ssheet[o[4]][0], curses.color_pair( ssheet[o[4]][1]))
                     elif o[2] == OBJ_CARCASS:
@@ -1881,7 +2001,7 @@ while alive:
         for e in entities:
             if e[2] == "Gnome" and (not isnonsolid(lvl[e[0]][e[1]])):
                 continue
-            if fog[e[0]][e[1]] and checkfow(e[0],e[1]):
+            if fog[e[0]][e[1]] and fovBrain.lit(e[0],e[1]):
                 if lvl[e[0]][e[1]] == 8:
                     c=curses.color_pair(12)
                 else:
@@ -2034,7 +2154,7 @@ while alive:
                 
                 for e in entities: #hit entities hit enemy
                     if( (e[0]==nx) and (e[1]==ny)):
-                        if e[3] == 'g' and e[4].status != GN_DONE:
+                        if e[2] == "Gnome" and e[4].status != GN_DONE:
                             if (len(inventory)<MAXINV) and  (randint(0,2) + (not attributes[ATTR_STRONG_HANDS]))<1:
                                 mess("You catch a Gnome")
                                 inventory.append([0,0,OBJ_GNOME,e[5]])
@@ -2461,6 +2581,19 @@ while alive:
                     mess("You eat the liver. +"+str(b)+" MANA")
                     mana += b
                     del inventory[touse]
+                elif idd == OBJ_GNOME:
+                    l = inventory[touse][3].loot 
+                    if l == -1:
+                        mess("The gnome is not carrying anything")
+                    elif l[2] == OBJ_GOLD:
+                        mess("You get back your money")
+                        gold += l[3]
+                    else:
+                        mess("You shake the gnome and your "+object_names(l) +" comes out.")
+                        objects.append([x,y] + l[2:])
+
+                    inventory[touse][3].loot = -1
+
                 elif idd == OBJ_PLANT:
                     species = inventory[touse][4]
                     adj = inventory[touse][3]
@@ -2772,7 +2905,7 @@ while alive:
                             bott = min(20,gold)
                             gold -= bott
                             mess("A gnome strips you of your gold!",3)
-                            e[5].loot = OBJ_GOLD
+                            e[5].loot = [0,0,OBJ_GOLD,bott]
                         elif len(inventory)>0:
                             ggh = randint(0,len(inventory)-1)
                             mess("A gnome strips you of your "+object_names(inventory[ggh]),3)

@@ -129,7 +129,7 @@ class dMap:
 
    def makeTemple(self):
     rtype=100
-    saas=randrange(3)+9
+    saas=randrange(3)+5
     rwide=saas
     rlong=saas
     return rwide,rlong,rtype
@@ -407,3 +407,119 @@ class dMap:
             else:
                 self.lavaArr[y][x] = 0
     
+
+   def drawranline(self,x1,y1,x2,y2):
+        sx = (x1>x2)*2 - 1        
+        sy = (y1>y2)*2 - 1
+
+        moves = [0 for _ in range(abs(x1-x2))] + [1 for _ in range(abs(y1-y2))]
+        shuffle(moves)
+        x = x2
+        y = y2
+        for m in moves:
+            self.caveArr[x][y] = 0
+            if m == 0:
+                x+=sx
+            if m == 1:
+                y+=sy
+        self.caveArr[x1][y1] = 0
+
+
+   def dropNode(self,x,y,r):
+    if r<1 and randint(0,3)==0:
+        for c in range(0,50):
+            if randint(0,1)==0:
+                x+=randint(0,1)*2-1
+            else:
+                y+=randint(0,1)*2-1
+            if (not x in range(1,len(self.caveArr)-1)) or (not y in range(1,len(self.caveArr[0])-1)):
+                break
+            self.caveArr[x][y] = 0
+        return
+                
+    if r<1 or x<r+2 or x>len(self.caveArr)-r-2 or y<r+2 or y>len(self.caveArr[0])-r-2:
+        return
+    for i in range(int(x-r-1),int(x+r+2)):
+        for j in range(int(y-r-1),int(y+r+2)):
+            if (i-x)**2 + (j-y)**2 < r**2+1:
+                self.caveArr[i][j] = 0
+    for i in range(0,1+int(r)):
+        theta = float(randint(0,1000))/1000 * 2 * pi
+        nx = x + int(cos(theta) * r * 1)
+        ny = y + int(sin(theta) * r * 1)
+        self.dropNode(nx,ny,uniform(0,r*.4))
+
+    for i in range(0,randint(int(r//3),int(r//2))):
+            (px,py) = (randint(1,len(self.caveArr)-2),randint(1,len(self.caveArr[0])-2))
+            self.drawranline(x,y,px,py)
+            self.dropNode(px,py,r*0.6)
+
+   def dropRiver(self,xs,ys,t):
+    if t<=0:
+        return
+    x = xs
+    for j in range(ys,len(self.caveArr[0])):
+        for i in range(max(0,x-t),min(x,len(self.caveArr))):
+            if self.caveArr[i][j] == 0:
+                self.caveArr[i][j] = 66
+        x+=randint(-1,1)
+        if randint(0,20) == 0:
+            self.dropRiver(x+  (randint(0,1)*2-1)*(t+1) ,j,t-1)
+            if randint(0,1) == 0:
+                t-=1
+
+   def makeRayH(self):
+    y = randint(2,len(self.caveArr[0])-3)
+    g = []
+    for x in range(0,len(self.caveArr)):
+        if self.caveArr[y][x] in [0,66]:
+            g.append(x)
+    shuffle(g)
+    s = g[:(len(g)-1)//10]
+    for x in g:
+        if x in s:
+            self.caveArr[y][x] = 3
+        else:
+            self.caveArr[y][x] = 2
+
+   def makeRayV(self):
+    x = randint(2,len(self.caveArr)-3)
+    g = []
+    for y in range(0,len(self.caveArr[0])):
+        if self.caveArr[y][x] in [0,66]:
+            g.append(y)
+    shuffle(g)
+    s = g[:(len(g)-1)//10]
+    for y in g:
+        if y in s:
+            self.caveArr[y][x] = 3
+        else:
+            self.caveArr[y][x] = 2
+
+
+   def makeCaveLevel(self,xsize,ysize):
+#    self.caveArr = [[55 for _ in range(ysize)] for _ in range(xsize)]
+    self.makeCave(xsize,ysize,[])
+    self.dropNode(30,30,10)
+#    self.drawranline(0,0,59,59)
+    self.makeRayH()
+    self.makeRayV()
+    if randint(0,3)<3:
+        self.dropRiver(30,0,randint(2,5))
+
+
+    toclean=[]
+    for i in range(0,xsize):
+        for j in range(0,ysize):
+            if self.caveArr[j][i] == 55:
+                clean = True
+                gg = [ (x,y) for x in [i-1,i,i+1] for y in [j-1,j,j+1] ]
+                for g in gg:
+                    if (not g[0] in range(0,xsize)) or (not g[1] in range(0,ysize)):
+                        continue
+                    if self.caveArr[g[1]][g[0]] in [0,66]:
+                        clean = False
+                if clean:
+                    toclean.append((i,j))
+    for t in toclean:
+        self.caveArr[t[1]][t[0]] = 1
