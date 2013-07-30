@@ -148,6 +148,9 @@ WALLS = [
 
 
 #DATA
+
+dtypenames = ["Dungeon","Gnome Village","The End"]
+
 classnames = [ "MIND", "BODY", "LIGHT" , "ABORT"]
 
 tfile = open('title','r')
@@ -1231,7 +1234,7 @@ def findfree():
     return (gx,gy)
 
 fog = []
-def floodfill(xs,ys,ite=-1):
+def floodfill(xs,ys,ite=-1,force=False):
     if (xs < 0) or (xs>=LV_W) or (ys < 0) or (ys>=LV_H):
         return
     if ite==0:
@@ -1241,7 +1244,7 @@ def floodfill(xs,ys,ite=-1):
     else:
         nex=ite-1
     
-    if fog[xs][ys] != 0:
+    if fog[xs][ys] != 0 and not force:
         return
     fog[xs][ys] = 1
     if isnonsolid(lvl[xs][ys]):
@@ -1635,10 +1638,16 @@ while alive:
             if DEBUG and stage==1:
                 dragonfactor = 2
             
-            lestries = 0
-            while not mapper.makeMap(LV_W,LV_H,110,10+dragonfactor,dragonfactor,60):
-                lestries+=1
-            lvl = [[converter[mapper.mapArr[j][i]] for i in range(0,LV_W)] for j in range(0,LV_H)]
+            if stage % 5 != 0:
+                dtype = 0 
+                lestries = 0
+                while not mapper.makeMap(LV_W,LV_H,110,10+dragonfactor,dragonfactor,60):
+                    lestries+=1
+                lvl = [[converter[mapper.mapArr[j][i]] for i in range(0,LV_W)] for j in range(0,LV_H)]
+            else:
+                dtype = 1
+                mapper.makeVillage(60,60)
+                lvl = [[converter[mapper.caveArr[j][i]] for i in range(0,LV_W)] for j in range(0,LV_H)]
             
             #correct naked edges
             for i in range(LV_W):
@@ -1895,6 +1904,7 @@ while alive:
 
 
     else:
+        dtype = 2
         lvl = [[2 for i in range(0,LV_W)] for j in range(0,LV_H)]
         f=open("final",'r')
         flvl = f.readlines()
@@ -1985,8 +1995,8 @@ while alive:
                     mypad.addch(j,i,' ',curses.color_pair(0))
 
 
-                if DEBUG and lvl[i][j] == 0 and not con[i][j] == 1:
-                    mypad.addch(j,i,'+')
+                #if DEBUG and lvl[i][j] == 0 and not con[i][j] == 1:
+                #    mypad.addch(j,i,'+')
         #draw objects
         for o in objects:
             if fog[o[0]][o[1]] and fovBrain.lit(o[0],o[1]):
@@ -2065,7 +2075,7 @@ while alive:
             back.addstr(LW_H+6+ct,1, m[0], lecol)
             ct+=1
 
-        back.addstr(LW_H+2,14,"*FLOOR "+str(stage)+"*")
+        back.addstr(LW_H+2,7,"*FLOOR "+str(stage)+" - "+dtypenames[dtype] +"*")
 
         for i in range(LW_W+3,LW_W+3+22):
             back.addch(0,i,BXCHARS[5])
@@ -2176,7 +2186,7 @@ while alive:
                 if lvl[nx][ny] == 3: #open doors
                     lvl[nx][ny] = 0
                     mess("You open the door.")
-                    floodfill(nx,ny)
+                    floodfill(nx,ny,-1,True)
                 if lvl[nx][ny] == 4: #exit
                     crawlin = False
                     mess("You descend the stairs...")

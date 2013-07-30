@@ -4,6 +4,39 @@ from math import *
 
 wedidit=True
 
+
+# N is the set of nodes {a,b,c..}
+# A is the set of arcs with costs {(a,b,1),(a,c,2)..}
+#
+# Use: Kruskal (N,A)
+
+def find (u, C):
+  i = 0
+  for c in C:
+    if (u in c): return (c,i)
+    i += 1
+  
+def merge (C, ucomp, vcomp):
+  return [ucomp[0] + vcomp[0]] + [i for j, i in enumerate(C) if j not in [ucomp[1], vcomp[1]]]
+
+
+def Kruskal (N, A):
+  A = sorted(A, key= lambda A: A[2])
+  C = [[u] for u in N]
+  T = []
+  n = len(N)
+  for shortestA in A:
+    u, v = shortestA[0], shortestA[1]
+    ucomp, vcomp = find(u, C), find(v, C)
+    if (ucomp != vcomp):
+      C = merge (C, ucomp, vcomp)
+      T.append((u,v))
+      if (len(T) == (n-1)): break
+      
+  return T
+
+
+
 class dMap:
    def __init__(self):
        self.roomList=[]
@@ -409,6 +442,10 @@ class dMap:
     
 
    def drawranline(self,x1,y1,x2,y2):
+
+        if x1<0 or x1>=len(self.caveArr) or x2<0 or x2>=len(self.caveArr):
+            print("not drawing line outside limits. "+str(x1)+","+str(y1))
+            return
         sx = (x1>x2)*2 - 1        
         sy = (y1>y2)*2 - 1
 
@@ -416,13 +453,21 @@ class dMap:
         shuffle(moves)
         x = x2
         y = y2
+        doorable=[]
         for m in moves:
+            if self.caveArr[x][y] == 2: 
+                doorable.append((x,y))
             self.caveArr[x][y] = 0
             if m == 0:
                 x+=sx
             if m == 1:
                 y+=sy
         self.caveArr[x1][y1] = 0
+        dc = doorable
+        
+        if len(doorable) <= 2:
+            for d in doorable:
+                self.caveArr[d[0]][d[1]] = 3
 
 
    def dropNode(self,x,y,r):
@@ -523,3 +568,78 @@ class dMap:
                     toclean.append((i,j))
     for t in toclean:
         self.caveArr[t[1]][t[0]] = 1
+
+   def makeVillage(self,xsize,ysize):
+
+    self.caveArr = [[55 for i in range(ysize)] for t in range(xsize)]
+
+    nodes = [ (randint(1,xsize-2),randint(1,ysize-2)) for _ in range(13) ]
+
+    rooms = []
+    safec = 0
+    while len(rooms)<30 and safec<400:
+        w = randint(5,11)
+        l = randint(5,11)        
+        x = randint(1,xsize-2-w)
+        y = randint(1,ysize-2-l)
+        canPlace = True
+        for i in range(x+1,x+w-1):
+            for j in range(y,y+l-1):
+                if self.caveArr[i][j] != 55:
+                    canPlace = False
+        if canPlace:
+                rooms.append((x+w//2,y+l//2))
+                if randint(0,3) > 0:
+                    for i in range(x,x+w):
+                        for j in range(y,y+l):           
+                            self.caveArr[i][j] = 0
+                            if i == x or i == x+w-1 or j == y or j == y+l-1:
+                                   self.caveArr[i][j] = 2
+                else:
+
+                    for d in range(0,randint(1,3)):
+                        xs = x+ w//2
+                        ys = y+ l//2
+                 
+                        for c in range(20):
+                            if randint(0,1)==0:
+                                xs += randint(0,1)*2-1
+                            else:
+                                ys += randint(0,1)*2-1
+                            xs = max(x,min(xs,x+w-1))
+                            ys = max(y,min(ys,y+l-1))
+                            self.caveArr[xs][ys] = 0
+                                   
+                            
+
+
+        safec += 1
+
+
+    nodes = [ (r[0],r[1]) for r in rooms ]
+
+    edges = [ (a,b, abs(a[0]-b[0]) + abs(a[1]-b[1])) for a in nodes for b in nodes ]
+
+    mst = Kruskal(nodes,edges)
+
+    print mst
+
+    for e in mst:
+        self.drawranline(e[0][0],e[0][1],e[1][0],e[1][1])
+
+    toclean=[]
+    for i in range(0,xsize):
+        for j in range(0,ysize):
+            if self.caveArr[j][i] == 55:
+                clean = True
+                gg = [ (x,y) for x in [i-1,i,i+1] for y in [j-1,j,j+1] ]
+                for g in gg:
+                    if (not g[0] in range(0,xsize)) or (not g[1] in range(0,ysize)):
+                        continue
+                    if self.caveArr[g[1]][g[0]] in [0,66]:
+                        clean = False
+                if clean:
+                    toclean.append((i,j))
+    for t in toclean:
+        self.caveArr[t[1]][t[0]] = 1
+

@@ -43,7 +43,8 @@ somename.makeMap(startx,starty,110,15,5,60)
 #somename.makeLava(60,60,0.4,0)
 somename.gayLava(60,60,0.95,30,6)
 openings = [(0,3),(10,0),(19,3),(8,19)]
-somename.makeCaveLevel(60,60)
+#somename.makeCaveLevel(60,60)
+somename.makeVillage(60,60)
 for y in range(starty):
         line = ""
         for x in range(startx):
