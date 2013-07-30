@@ -3036,8 +3036,8 @@ while alive:
 
 
             else: #not a dragon
-                if e[3] in range(ord('a'),ord('z')+1):
-                    if randint(0,25) > e[3] - ord('a'):
+                if ord(e[3]) in range(ord('a'),ord('z')+1):
+                    if randint(0,25) > ord(e[3]) - ord('a'):
                         reps = 1
                     else:
                         reps = 2
