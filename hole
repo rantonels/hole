@@ -3025,14 +3025,13 @@ while alive:
     crawlin=True
     while alive and crawlin:
         
-        draw()
 
         #1 PLAYER TURN
         cango=False
         while not cango:
+            draw()
             cmd = getchar()
             cango = dopturn(cmd)
-            draw()
 
         #move wotah
         if not waterfrozen:
