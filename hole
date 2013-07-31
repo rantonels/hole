@@ -1921,12 +1921,7 @@ def dopturn(cmd):
                 if isnonsolid(lvl[nx][ny]):
                     floodfill(nx,ny)
 
-                if iswalkable(nx,ny):
-                    x = nx
-                    y = ny
-                    turn=1  
-                    return True
-                
+                                
                 for e in entities: #hit entities hit enemy
                     if( (e[0]==nx) and (e[1]==ny)):
 
@@ -2029,6 +2024,13 @@ def dopturn(cmd):
                 if lvl[nx][ny] == 101: #finale
                     finale()
                     return True
+
+                if iswalkable(nx,ny):
+                    x = nx
+                    y = ny
+                    turn=1  
+                    return True
+
 
 
         #d button drop item
