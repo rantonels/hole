@@ -7,6 +7,10 @@
 * explore/examine command
 * help (keybindings) panel
 * smart fairies
+* bows and arrows
+* sort command
+* abilities (sword, bow, magic)
+* race (even mixed)
 
 * abstractization of actions DONE!
 * smarter turn system ALMOST!

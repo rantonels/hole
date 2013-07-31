@@ -101,8 +101,6 @@ while WX<67 or WY<26:
     stdscr.addstr(0,0,"SCREEN SIZE INSUFFICIENT. PLEASE RESIZE.")
     flush_main()
 
-if not DEBUG:
-    MODE = 0
 
 if MODE == -1:
     stdscr.clear()
@@ -111,15 +109,15 @@ if MODE == -1:
         for i in range(0,3):
             stdscr.addstr(1+i,1,">"*(i==MODE) + ["ASCII","UNICODE","STANDALONE/GRAPHICAL"][i] + "   ")
     
-        stdscr.addstr(5 ,1,"Unicode allows for a larger set of characters,")
-        stdscr.addstr(6 ,1,"but your terminal might not support it. If the")
-        stdscr.addstr(7 ,1,"program crashes or some characters are printed")
-        stdscr.addstr(8 ,1,"incorrectly, revert to ASCII.")
-        stdscr.addstr(9 ,1,"Unicode mode requires Python3.3, and is experi")
-        stdscr.addstr(10 ,1,"mental.")
+        stdscr.addstr(5 ,1,"Unicode and Graphical mode are experimental.  ")
+        stdscr.addstr(6 ,1,"Unicode mode extends the available characters,")
+        stdscr.addstr(7 ,1,"for an interesting experience. Graphical opens")
+        stdscr.addstr(8 ,1,"a standalone window. Unicode needs Python 3.3;")
+        stdscr.addstr(9 ,1,"Graphical needs the pygame module.            ")
+        stdscr.addstr(10 ,1,"       ")
 
-        stdscr.addstr(12,1,"(P.S.: you can avoid this prompt by appending ")
-        stdscr.addstr(13,1,"--ascii or --unicode when starting Hole.")
+        stdscr.addstr(12,1,"P.S.: you can avoid this prompt by appending ")
+        stdscr.addstr(13,1,"the --ascii, --unicode or --standalone options")
         stdscr.refresh()
         s=stdscr.getch()
         if s == curses.KEY_UP:
@@ -150,20 +148,19 @@ if GRAPHIC:
     curses.echo()
     curses.endwin()
 
-    import libtcodpy as libtcod
+    import graphics
+    term = graphics.Terminal(67,26,"terminal16x16_gs_ro.png")
 
-    libtcod.console_set_custom_font('arial10x10.png', libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD)
-    libtcod.console_init_root(67, 26, 'Hole', False)
-    libtcod.console_set_default_foreground(0, libtcod.white)
+    stdscr = term.stdscr
 
 graphcolors = [(0,1)]*20
 
 if GRAPHIC:
-    KEYUP = libtcod.KEY_UP
-    KEYDOWN = libtcod.KEY_DOWN
-    KEYLEFT = libtcod.KEY_LEFT
-    KEYRIGHT = libtcod.KEY_RIGHT
-    KEYENTER = libtcod.KEY_ENTER
+    KEYUP = graphics.KUP
+    KEYDOWN = graphics.KDOWN
+    KEYLEFT = graphics.KLEFT
+    KEYRIGHT = graphics.KRIGHT
+    KEYENTER = graphics.KENTER
 else:
     KEYUP = curses.KEY_UP
     KEYDOWN = curses.KEY_DOWN
@@ -172,16 +169,15 @@ else:
     KEYENTER = ord('\n')
 
  
-
-def addch_main(y,x,char,col=0):
+'''
+def stdscr.addch(y,x,char,col=0):
     if GRAPHIC:
-#        libtcod.console_set_default_foreground(0, graphcolors[col][0])
-#        libtcod.console_set_default_background(0, graphcolors[col][1])
         libtcod.console_put_char(0,x,y,char, libtcod.BKGND_SET)
+        
     else:
         stdscr.addch(y,x,char,col)
 
-def addstr_main(y,x,string,col=0):
+def stdscr.addstr(y,x,string,col=0):
     if GRAPHIC:
 #        libtcod.console_set_default_foreground(0, graphcolors[col][0])
 #        libtcod.console_set_default_background(0, graphcolors[col][1])
@@ -195,15 +191,33 @@ def flush_main():
     if GRAPHIC:
         libtcod.console_flush()
     else:
-        stdscr.refresh()
+        stdscr.refresh()'''
 
 def getchar():
     if GRAPHIC:
-        k = libtcod.console_wait_for_keypress(True)
-        print(k)
-        return k
+        return term.getch()
     else:
         return stdscr.getch()
+
+def flush_main():
+    if GRAPHIC:
+        term.refresh()
+    else:
+        stdscr.refresh()
+
+def blitlvl():
+    global camx,camy,mypad,term
+    if GRAPHIC:
+        term.blit(mypad,camy,camx,1,1,LW_H+1,LW_W+1)
+    else:
+        mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
+
+def blitback():
+    global back
+    if GRAPHIC:
+        term.blit(back,0,0,0,0,26,67)
+    else:
+        back.noutrefresh()
 
 BXCHARS =   ['+','+','+','+','|','-','+','+','+','+']
 if UNICODE:
@@ -246,7 +260,15 @@ creditsred = creditsdata[24:49]
 creditsyellow = creditsdata[49:75]
 cfile.close()
 
-def addstrtrans(screen,y,x,string,col = curses.color_pair(0)):
+def color_pair(n):
+    global GRAPHIC
+    if GRAPHIC:
+        return n
+    else:
+        return curses.color_pair(n)
+
+
+def addstrtrans(screen,y,x,string,col = color_pair(0)):
     for i in range(0,len(string)):
         if string[i] != ' ':
             screen.addch(y,x+i,string[i],col)
@@ -759,27 +781,27 @@ def spellcast(n):
                         
         if len(count)>0:
             i = 0
-            addstr_main(0,3,"CHOOSE TARGET FOR THUNDER",curses.color_pair(10))
+            stdscr.addstr(0,3,"CHOOSE TARGET FOR THUNDER",color_pair(10))
             rays = [get_line(x,y,entities[e][0],entities[e][1]) for e in count]
             while True:
                 for j in range(0,len(count)):
                     if j == i:
-                        rcol = (' ',curses.color_pair(16))
+                        rcol = (' ',color_pair(16))
                     else:
-                        rcol = ('.',curses.color_pair(4))
+                        rcol = ('.',color_pair(4))
                     for k in rays[j]:
                         mypad.addch(k[1],k[0],rcol[0],rcol[1])
                 for j in range(0,len(count)):
                     e = entities[count[j]]
                     if j == i:
-                        rcol = (' ',curses.color_pair(16))
+                        rcol = (' ',color_pair(16))
                     else:
-                        rcol = ('.',curses.color_pair(4))
+                        rcol = ('.',color_pair(4))
                     mypad.addch(e[1],e[0],e[3],rcol[1])
 
-                mypad.addch(y,x,'@',curses.color_pair(16))
+                mypad.addch(y,x,'@',color_pair(16))
 
-                mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
+                blitlvl()
                 flush_main()
                 s = getchar()
                 
@@ -811,40 +833,40 @@ def spellcast(n):
     elif n==8: #transmigration
         elemental(EL_THUNDER)
         trange = 3+4*wand
-        addstr_main(0,3,"CHOOSE DIRECTION FOR TRANSMIGRATION",curses.color_pair(10))
+        stdscr.addstr(0,3,"CHOOSE DIRECTION FOR TRANSMIGRATION",color_pair(10))
         count = 0
         dc = -1
         while True:
             draw()
-            mypad.addch(y,x,'@',curses.color_pair(10))  
+            mypad.addch(y,x,'@',color_pair(10))  
             '''for i in range(1,trange+1):
-                addchsafe(y,x-i,' ',curses.color_pair(13))
-                addchsafe(y,x+i,' ',curses.color_pair(13))
-                addchsafe(y-i,x,' ',curses.color_pair(13))
-                addchsafe(y+i,x,' ',curses.color_pair(13))
+                addchsafe(y,x-i,' ',color_pair(13))
+                addchsafe(y,x+i,' ',color_pair(13))
+                addchsafe(y-i,x,' ',color_pair(13))
+                addchsafe(y+i,x,' ',color_pair(13))
             for i in range(1,count+1):
             for i in range(1,count+1):
                 if dc == 2:
-                    addchsafe(y,x-i,' ',curses.color_pair(14))
+                    addchsafe(y,x-i,' ',color_pair(14))
                 if dc == 0:
-                    addchsafe(y,x+i,' ',curses.color_pair(14))
+                    addchsafe(y,x+i,' ',color_pair(14))
                 if dc == 3:
-                    addchsafe(y-i,x,' ',curses.color_pair(14))
+                    addchsafe(y-i,x,' ',color_pair(14))
                 if dc == 1:
-                    addchsafe(y+i,x,' ',curses.color_pair(14))    '''
+                    addchsafe(y+i,x,' ',color_pair(14))    '''
 
             i = count
             if dc == 2:
-                    addchsafe(y,x-i,'@',curses.color_pair(2))
+                    addchsafe(y,x-i,'@',color_pair(2))
             if dc == 0:
-                    addchsafe(y,x+i,'@',curses.color_pair(2))
+                    addchsafe(y,x+i,'@',color_pair(2))
             if dc == 3:
-                    addchsafe(y-i,x,'@',curses.color_pair(2))
+                    addchsafe(y-i,x,'@',color_pair(2))
             if dc == 1:
-                    addchsafe(y+i,x,'@',curses.color_pair(2))
+                    addchsafe(y+i,x,'@',color_pair(2))
             
 
-            mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
+            blitlvl()
             flush_main()
             ccc = getchar()    
             if ccc == KEYDOWN:
@@ -950,7 +972,6 @@ attribute_strings = {
 def exprofile(r):
     return int(r*4.9 + r*r*4.9//16)
 
-
 curses.init_pair(0, curses.COLOR_WHITE,     curses.COLOR_BLACK)
 curses.init_pair(1, curses.COLOR_BLACK,     curses.COLOR_WHITE)     #1 black on white
 curses.init_pair(2, curses.COLOR_GREEN,     curses.COLOR_BLACK)     #2 green
@@ -972,19 +993,20 @@ curses.init_pair(17,curses.COLOR_BLACK, -1)         #test
 curses.init_pair(18,curses.COLOR_CYAN,  curses.COLOR_BLACK) #cyan
 
 
-C_WHITE = curses.color_pair(1)
-C_WHITERED = curses.color_pair(9)
-C_WHITEYELLOW = curses.color_pair(11)
-C_WHITEBLUE = curses.color_pair(6)
+C_WHITE = color_pair(1)
+C_WHITERED = color_pair(9)
+C_WHITEYELLOW = color_pair(11)
+C_WHITEBLUE = color_pair(6)
 
 if GRAPHIC:
-    mypad = libtcod.console_new(LV_W, LV_H)
+    mypad = graphics.Pad(LV_W,LV_H) 
+    back = graphics.Pad(67,26)
 else:
     mypad = curses.newpad(LV_W,LV_H)
+    back = curses.newwin(0,0)
 
 flush_main()
 
-back = curses.newwin(0,0)
 
 #INIT
 mxhp=100
@@ -1130,20 +1152,20 @@ def finale():
         
     for l in diag:
         stdscr.clear()
-        addch_main(15,20,'@',curses.color_pair(10))   
-        addch_main(15,23,'@',curses.color_pair(0))
-        addstr_main(7,6,"                                             ")
+        stdscr.addch(15,20,'@',color_pair(10))   
+        stdscr.addch(15,23,'@',color_pair(0))
+        stdscr.addstr(7,6,"                                             ")
         n = [name+": ","Oskar: ",""][l[0]]
-        dcl = [curses.color_pair(i) for i in [8,10,0]][l[0]]
+        dcl = [color_pair(i) for i in [8,10,0]][l[0]]
         s1 = (n+l[1])[:50]
         s2 = ""
         if len(n+l[1])>50:
             s2 = (n+l[1])[50:]
-        addstr_main(7,6,s1,dcl)
-        addstr_main(8,6+len(n),s2,dcl)
+        stdscr.addstr(7,6,s1,dcl)
+        stdscr.addstr(8,6+len(n),s2,dcl)
         if l[0] == 2:
             mess(s1)
-        curses.napms(100)
+        #curses.napms(100)
         getchar()
 
     alive = False 
@@ -1577,27 +1599,46 @@ dada =[
 n = 0
 menu = True
 while menu:
+    if DEBUG and GRAPHIC:
+        print("Printing menu...")
     stdscr.clear()
     ppp = 3
     for l in title:
         for i in range(0,len(l)):
-            ttlc = curses.color_pair(0)
-            addch_main(ppp,8+i,l[i],ttlc) 
+            ttlc = color_pair(0)
+            stdscr.addch(ppp,8+i,l[i],ttlc) 
         ppp+=1
 
     for i in range(0,len(dada)):
         if n==i:
-            sscc = curses.color_pair(1)
+            sscc = color_pair(1)
             zibi = "*"
         else:
-            sscc = curses.color_pair(0)
+            sscc = color_pair(0)
             zibi = ""
-        addstr_main(12+i,7,zibi+dada[i],sscc)
+        stdscr.addstr(12+i,7,zibi+dada[i],sscc)
+
+    if DEBUG and GRAPHIC:
+        sys.stdout.write("Flushing...")
+        sys.stdout.flush()
+
     flush_main()
+
+    if DEBUG and GRAPHIC:
+        sys.stdout.write("getchar()...")
+        sys.stdout.flush()
+
+
     key = getchar()
-    if key == KEYDOWN:
+
+    if DEBUG and GRAPHIC:
+        sys.stdout.write(str(key))
+        sys.stdout.flush()
+
+
+    if key in [KEYDOWN,ord('j')]:
         n=(n+1)%len(dada)
-    elif key == KEYUP:
+    elif key in [KEYUP,ord('k')]:
         n=(n-1)%len(dada)
     elif key == KEYENTER:
         if n == 0:
@@ -1625,19 +1666,19 @@ while menu:
                 stdscr.clear()
                 for j in range(0,len(stuff)):
                     if m == j:
-                        cacol = curses.color_pair(1)
+                        cacol = color_pair(1)
                     else:
-                        cacol = curses.color_pair(0)
-                    addstr_main(1+j,1,stuff[j],cacol)
+                        cacol = color_pair(0)
+                    stdscr.addstr(1+j,1,stuff[j],cacol)
 
-                addstr_main(1,15,name)
-                addstr_main(2,15,["M","F"][gender])
-                addstr_main(3,15,spellbook[fspell][0][2])
+                stdscr.addstr(1,15,name)
+                stdscr.addstr(2,15,["M","F"][gender])
+                stdscr.addstr(3,15,spellbook[fspell][0][2])
 
                 i = 0
                 for j in range(0,len(attribute_strings)):
                     if attributes[j]:
-                        addstr_main(1+i,27," "+attribute_strings[j][0])
+                        stdscr.addstr(1+i,27," "+attribute_strings[j][0])
                         i+=1
 
 
@@ -1655,7 +1696,7 @@ while menu:
                         menu = False
                         cock = False
                     if m==0:
-                        addstr_main(1,15,"_"*10)
+                        stdscr.addstr(1,15,"_"*10)
                         curses.echo()
                         name = stdscr.getstr(1,15,10)
                         curses.noecho()
@@ -1668,15 +1709,15 @@ while menu:
                         while True:
                             for i in range(0,len(attribute_strings)):
                                 if attributes[i]:
-                                    cola = curses.color_pair(0)
+                                    cola = color_pair(0)
                                 else:
-                                    cola = curses.color_pair(8)
-                                addstr_main(1+i,27," "+attribute_strings[i][0],cola)
-                            addch_main(1+g,27,'*')
-                            addstr_main(3+len(attribute_strings),28,str(ATTRPOINTS - sum(attributes)) + " attribute points left.")
+                                    cola = color_pair(8)
+                                stdscr.addstr(1+i,27," "+attribute_strings[i][0],cola)
+                            stdscr.addch(1+g,27,'*')
+                            stdscr.addstr(3+len(attribute_strings),28,str(ATTRPOINTS - sum(attributes)) + " attribute points left.")
                             
-                            addstr_main(15,2," "*50)
-                            addstr_main(15,2,attribute_strings[g][1])
+                            stdscr.addstr(15,2," "*50)
+                            stdscr.addstr(15,2,attribute_strings[g][1])
                             flush_main()
                             zzz = getchar()
                             if zzz == KEYDOWN:
@@ -1694,13 +1735,13 @@ while menu:
         elif n==2:
             stdscr.clear()
             for j in range(0,len(credits)):
-                addstr_main(j,0,credits[j])
+                stdscr.addstr(j,0,credits[j])
             for j in range(0,len(creditsred)):
-                addstrtrans(stdscr,j,0,creditsred[j],curses.color_pair(4))
+                addstrtrans(stdscr,j,0,creditsred[j],color_pair(4))
             for j in range(0,len(creditsyellow)):
-                addstrtrans(stdscr,j,0,creditsyellow[j],curses.color_pair(3))
-            #addch_main(3,8,'#',curses.color_pair(1))
-            #addch_main(3,10,'#',curses.color_pair(1))
+                addstrtrans(stdscr,j,0,creditsyellow[j],color_pair(3))
+            #stdscr.addch(3,8,'#',color_pair(1))
+            #stdscr.addch(3,10,'#',color_pair(1))
             flush_main()
             getchar()
         elif n==3:
@@ -1713,7 +1754,7 @@ while menu:
 
             
     
-'''addstr_main(12,5,"Input your name (Press Enter for random name):")
+'''stdscr.addstr(12,5,"Input your name (Press Enter for random name):")
 flush_main()
 curses.echo()
 name = stdscr.getstr(14,6,10)
@@ -1749,19 +1790,19 @@ def draw():
         for i in range(max(0,x-LW_W),min(x+LW_W,LV_W)):
             for j in range(max(0,y-LW_H),min(y+LW_H,LV_H-1)):
                 if fag(i,j):
-                    tilecol = curses.color_pair(tset[lvl[i][j]][1])
+                    tilecol = color_pair(tset[lvl[i][j]][1])
                     if lvl[i][j] == 100 and waterfrozen:    
-                        mypad.addch(j,i,'/' , curses.color_pair(15))
+                        mypad.addch(j,i,'/' , color_pair(15))
                     elif visibility_dots and lvl[i][j] == 0:
                             if fovBrain.lit(i,j):
-                                mypad.addstr(j,i,visdotchar,curses.color_pair(8))
+                                mypad.addstr(j,i,visdotchar,color_pair(8))
                     elif UNICODE and lvl[i][j] == 1:
                         total = iswall(i+1,j) + 2*iswall(i,j-1) + 4*iswall(i-1,j) + 8*iswall(i,j+1)
-                        mypad.addstr(j,i,WALLS[total][0].encode('utf-8'),curses.color_pair(WALLS[total][1]))
+                        mypad.addstr(j,i,WALLS[total][0].encode('utf-8'),color_pair(WALLS[total][1]))
                     else:
                         mypad.addstr(j,i,tset[lvl[i][j]][0] , tilecol  )
                 else:
-                    mypad.addch(j,i,' ',curses.color_pair(0))
+                    mypad.addch(j,i,' ',color_pair(0))
 
 
                 #if DEBUG and lvl[i][j] == 0 and not con[i][j] == 1:
@@ -1770,11 +1811,11 @@ def draw():
         for o in objects:
             if fog[o[0]][o[1]] and fovBrain.lit(o[0],o[1]):
                     if o[2] == OBJ_CHESTMONSTER and o[3] == 0:
-                        mypad.addch(o[1],o[0],ssheet[o[4]][0], curses.color_pair( ssheet[o[4]][1]))
+                        mypad.addch(o[1],o[0],ssheet[o[4]][0], color_pair( ssheet[o[4]][1]))
                     elif o[2] == OBJ_CARCASS:
-                        mypad.addch(o[1],o[0],chr(ord('a')+o[3]),curses.color_pair(0))
+                        mypad.addch(o[1],o[0],chr(ord('a')+o[3]),color_pair(0))
                     else:
-                        mypad.addstr(o[1],o[0],ssheet[o[2]][0], curses.color_pair(ssheet[o[2]][1]))  
+                        mypad.addstr(o[1],o[0],ssheet[o[2]][0], color_pair(ssheet[o[2]][1]))  
         
         #draw entities
         for e in entities:
@@ -1782,31 +1823,31 @@ def draw():
                 continue
             if fog[e[0]][e[1]] and fovBrain.lit(e[0],e[1]):
                 if lvl[e[0]][e[1]] == 8:
-                    c=curses.color_pair(12)
+                    c=color_pair(12)
                 else:
                     if e[2] == "Gnome":
-                        c = curses.color_pair(2)
+                        c = color_pair(2)
                     else:
-                        c=curses.color_pair(4) 
+                        c=color_pair(4) 
                 mypad.addstr(e[1],e[0],e[3], c)
                 if e[2] == "Dragon":
                     if e[8].particles == -1:
-                        mypad.addch(e[1]+e[8].by,e[0]+e[8].bx,'~',curses.color_pair(0))
+                        mypad.addch(e[1]+e[8].by,e[0]+e[8].bx,'~',color_pair(0))
                     elif e[8].particles > 0:
                         for i in range(1,1+e[8].particles):
-                            mypad.addch(e[1]+e[8].by*i,e[0]+e[8].bx*i,'*',curses.color_pair(4))
+                            mypad.addch(e[1]+e[8].by*i,e[0]+e[8].bx*i,'*',color_pair(4))
 
         #draw character
         if lvl[x][y] == 8:
-            c=curses.color_pair(9)
+            c=color_pair(9)
         elif curss[CURS_POISON]>0:
-            c=curses.color_pair(2)
+            c=color_pair(2)
         elif curss[CURS_LOVE]>0:
-            c=curses.color_pair(4)
+            c=color_pair(4)
         elif curss[CURS_ICE]>0:
-            c=curses.color_pair(8)
+            c=color_pair(8)
         else:
-            c=curses.color_pair(0) 
+            c=color_pair(0) 
 
         mypad.addch(y,x,'@',c)
 
@@ -1829,18 +1870,18 @@ def draw():
         back.addch(LW_H+2,LW_W+2,BXCHARS[3])
         back.addch(25,LW_W+25,BXCHARS[3])
         if DEBUG:
-            back.addstr(0,3,"DEBUG MODE",curses.color_pair(10))
+            back.addstr(0,3,"DEBUG MODE",color_pair(10))
 
         #info
         back.addstr(LW_H+3,1, "HP "+str(hp)+"/"+str(mxhp))  
-        back.addstr(LW_H+3,14, "G "+str(gold), curses.color_pair(3))
+        back.addstr(LW_H+3,14, "G "+str(gold), color_pair(3))
         if mana>0:
-            back.addstr(LW_H+3,25, "Mana: "+str(mana), curses.color_pair(8))
+            back.addstr(LW_H+3,25, "Mana: "+str(mana), color_pair(8))
         if gems[stage-1]:
-            back.addstr(LW_H+3,21, "EF!", curses.color_pair(2))
+            back.addstr(LW_H+3,21, "EF!", color_pair(2))
         ct=0
         for m in reverse(messages):
-            lecol=curses.color_pair(m[1])
+            lecol=color_pair(m[1])
             back.addstr(LW_H+6+ct,1, m[0], lecol)
             ct+=1
 
@@ -1858,7 +1899,7 @@ def draw():
                 else:
                     ster = str(curss[c])
 
-                back.addstr(1,LW_W+15+cs,ster,curses.color_pair(curses_colors[c]))
+                back.addstr(1,LW_W+15+cs,ster,color_pair(curses_colors[c]))
                 cs+=1
 
         back.addstr(1,LW_W+19, "LV "+str(rank).zfill(2))
@@ -1874,7 +1915,7 @@ def draw():
         for i in range(0,len(inventory)):
             s = object_names(inventory[i])[:INVCLIP]
 
-            back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
+            back.addstr(7+i,LW_W+4, s,color_pair(ssheet[inventory[i][2]][1]))
 
         back.addstr(2,LW_W+2+8,"EQUIPMT")
 
@@ -1887,10 +1928,10 @@ def draw():
             back.addstr(LW_H+4,15, "Water to floor "+str(waterlvl//WATSTEPS))
 
 
-        back.noutrefresh()
-        mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
+        blitback()
+        blitlvl()
     
-        curses.doupdate()
+        flush_main()
 
 def dopturn(cmd):
 
@@ -1923,16 +1964,16 @@ def dopturn(cmd):
             nx = x
             ny = y
             hasmoved = 0
-            if  cmd == KEYDOWN:
+            if  cmd in [KEYDOWN,ord('j')]:
                 ny = min(y+1,LV_H-2)
                 hasmoved = 1
-            elif cmd == KEYUP:
+            elif cmd in [KEYUP,ord('k')]:
                 ny = max (0,y-1)
                 hasmoved = 1
-            elif cmd == KEYLEFT:
+            elif cmd in [KEYLEFT,ord('h')]:
                 nx = max (0,x-1)
                 hasmoved = 1
-            elif cmd == KEYRIGHT:
+            elif cmd in [KEYRIGHT,ord('l')]:
                 nx = min(x+1,LV_W-1)
                 hasmoved = 1
             if hasmoved:
@@ -1987,9 +2028,9 @@ def dopturn(cmd):
                         stdscr.clear()
                         ppp = 1
                         for l in vendingback:
-                            addstr_main(ppp,1,l,curses.color_pair(0))
+                            stdscr.addstr(ppp,1,l,color_pair(0))
                             ppp+=1 
-                        addstr_main(1,7,"THAKNAR's - GIFT SHOP")
+                        stdscr.addstr(1,7,"THAKNAR's - GIFT SHOP")
 
                         lei = 1
                         for v in vmachset:
@@ -2003,10 +2044,10 @@ def dopturn(cmd):
                                 s = "Gold plate it!"
                             elif v[1] == 1:
                                 s = object_names(v[2])
-                            addstr_main(lei + 3,6,str(lei) + ") "+ (goodstring(s)) + str(v[0])+"* ", curses.color_pair(j))
+                            stdscr.addstr(lei + 3,6,str(lei) + ") "+ (goodstring(s)) + str(v[0])+"* ", color_pair(j))
                             lei+=1
-                        addstr_main(11,3,vmachword[0])
-                        addstr_main(12,3,vmachword[1])
+                        stdscr.addstr(11,3,vmachword[0])
+                        stdscr.addstr(12,3,vmachword[1])
 
 
                         flush_main()
@@ -2017,22 +2058,22 @@ def dopturn(cmd):
                             ind = rrrr-ord('1')
                             if vmachset[ind][1] == 0:
                                 stdscr.clear()
-                                addstr_main(1,1,"Choose an item to gold plate")
+                                stdscr.addstr(1,1,"Choose an item to gold plate")
                                 getchar()
                             if vmachset[ind][1] == 1:
                                 if gold >= vmachset[ind][0]:
-                                    b = curses.color_pair(5)
+                                    b = color_pair(5)
                                     if len(inventory)<MAXINV:
                                         gold -= vmachset[ind][0]
                                         inventory.append(vmachset[ind][2])
-                                        addstr_main(3,4,"+----------------------+",b)
-                                        addstr_main(4,4,"*    Good choice!      *",b)
-                                        addstr_main(5,4,"*Thanks for stopping by*",b)
-                                        addstr_main(6,4,"+----------------------+",b)
+                                        stdscr.addstr(3,4,"+----------------------+",b)
+                                        stdscr.addstr(4,4,"*    Good choice!      *",b)
+                                        stdscr.addstr(5,4,"*Thanks for stopping by*",b)
+                                        stdscr.addstr(6,4,"+----------------------+",b)
                                     else:
-                                        addstr_main(4,6,"+---------------+",b)
-                                        addstr_main(5,6,"|Inventory full.|",b)
-                                        addstr_main(6,6,"+---------------+",b)
+                                        stdscr.addstr(4,6,"+---------------+",b)
+                                        stdscr.addstr(5,6,"|Inventory full.|",b)
+                                        stdscr.addstr(6,6,"+---------------+",b)
                                     flush_main()
                                     getchar()
                     
@@ -2053,22 +2094,22 @@ def dopturn(cmd):
 
         #d button drop item
         if cmd == ord('d') and (len(inventory)+len(equip))>0:
-            addstr_main(7,7,"Select the item you want to drop")
+            stdscr.addstr(7,7,"Select the item you want to drop")
             n = 0
             lawlz = False
             while True:
                 for i in range(0,len(inventory)):
                     s = object_names(inventory[i])[:INVCLIP]
-                    back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
+                    back.addstr(7+i,LW_W+4, s,color_pair(ssheet[inventory[i][2]][1]))
                 for i in range(0,len(equip)):
                     back.addstr(3+i,LW_W+4, object_names(equip[i][0])[:INVCLIP])
 
                 if n < len(equip):
-                    back.addstr(3+n,LW_W+4, object_names(equip[n][0])[:INVCLIP], curses.color_pair(9))
+                    back.addstr(3+n,LW_W+4, object_names(equip[n][0])[:INVCLIP], color_pair(9))
                 else:
                     s = object_names(inventory[n-len(equip)])[:INVCLIP]
-                    back.addstr(7+n-len(equip),LW_W+4, s,curses.color_pair(9))
-                back.noutrefresh()
+                    back.addstr(7+n-len(equip),LW_W+4, s,color_pair(9))
+                blitback()
                 flush_main()
                 s = getchar()
 
@@ -2152,10 +2193,10 @@ def dopturn(cmd):
                     for j in range(0,len(found)):
                         f = found[j]
                         if j == z:
-                            c = curses.color_pair(1)
+                            c = color_pair(1)
                         else:
-                            c = curses.color_pair(0)
-                        addstr_main(h,5,object_names(oc[f]),c)
+                            c = color_pair(0)
+                        stdscr.addstr(h,5,object_names(oc[f]),c)
                         h+=1
                     flush_main()
                     fff = getchar()
@@ -2227,8 +2268,8 @@ def dopturn(cmd):
                     if k[0][2]==OBJ_WAND:
                         wand = 1
     
-                ccc = [curses.color_pair(n) for n in [6,9,11,1]]
-                cck = [curses.color_pair(n) for n in [8,4,3,0]]
+                ccc = [color_pair(n) for n in [6,9,11,1]]
+                cck = [color_pair(n) for n in [8,4,3,0]]
                 l = 0
                 c = 0
                 doit = False
@@ -2236,7 +2277,7 @@ def dopturn(cmd):
                 #patch = [ [j,i, mypad.inch(j,i) ] for i in range(max(0,x-10),min(LV_W,x+10)) for j in range(max(0,y-10),min(LV_H,y+10))]
                 while not doit:
                    # for gag in patch:
-                   #     addchsafe(gag[0],gag[1],gag[2],curses.color_pair(0))
+                   #     addchsafe(gag[0],gag[1],gag[2],color_pair(0))
                     draw()
                     if l!=3:
                         
@@ -2252,25 +2293,25 @@ def dopturn(cmd):
                                 if jib != [y,x]:
                                     addchsafe(jib[0],jib[1],'*',cck[l])
 
-                    mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
-                        
+                    blitlvl()                        
+
                     for p in range(0,10):
-                        addstr_main(2+p,LW_W+4,' '*13,0)
+                        stdscr.addstr(2+p,LW_W+4,' '*13,0)
                     t = 0
                     for i in range(0,4):
                         if l==i:
-                            addstr_main(2,LW_W+4+t,classnames[i].ljust(10),ccc[i])
+                            stdscr.addstr(2,LW_W+4+t,classnames[i].ljust(10),ccc[i])
                             if l!=3:
                             
                                 for i in range(0,min(spellsprog[l],len(spellbook[l]))):
                                     if c == i:
-                                        sbcol = curses.color_pair(13)
+                                        sbcol = color_pair(13)
                                     else:
                                         sbcol = cck[l]
-                                    addstr_main(3+i,LW_W+4+t,(str(spellbook[l][i][0])+" "+spellbook[l][i][2]).ljust(10),sbcol)
+                                    stdscr.addstr(3+i,LW_W+4+t,(str(spellbook[l][i][0])+" "+spellbook[l][i][2]).ljust(10),sbcol)
                             t+=10
                         else:
-                            addch_main(2,LW_W+4+t,'*',ccc[i]) 
+                            stdscr.addch(2,LW_W+4+t,'*',ccc[i]) 
                             t+=1
                     
                     flush_main()
@@ -2315,10 +2356,12 @@ def dopturn(cmd):
             while True:
                 for i in range(0,len(inventory)):
                     s = object_names(inventory[i])[:INVCLIP]
-                    back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
+                    back.addstr(7+i,LW_W+4, s,color_pair(ssheet[inventory[i][2]][1]))
                 s = object_names(inventory[n])[:INVCLIP]
-                back.addstr(7+n,LW_W+4, s,curses.color_pair(6))
-                back.noutrefresh()
+                back.addstr(7+n,LW_W+4, s,color_pair(6))
+            
+                blitback()
+                blitlvl()
                 flush_main()
                 s = getchar()
 
@@ -2362,11 +2405,11 @@ def dopturn(cmd):
 
                     yyy=2
                     for l in data:
-                        addstr_main(yyy,2,l)
+                        stdscr.addstr(yyy,2,l)
                         yyy+=1
                     yyy=4
                     for l in data2:
-                        addstr_main(yyy,6,l)
+                        stdscr.addstr(yyy,6,l)
                         yyy+=2  
                     flush_main()
                     getchar()
@@ -2374,7 +2417,7 @@ def dopturn(cmd):
                     data = clues[inventory[touse][3]]                   
                     yyy=2
                     for l in data:
-                        addstr_main(yyy,2,l)
+                        stdscr.addstr(yyy,2,l)
                         yyy+=1
        
                     flush_main() 
@@ -2520,17 +2563,17 @@ def dopturn(cmd):
                     jobby=False
                     c = 0
                     while not jobby:
-                        addstr_main(0,2,"CHOOSE CATEGORY",curses.color_pair(10))
+                        stdscr.addstr(0,2,"CHOOSE CATEGORY",color_pair(10))
                         for i in range(0,3):
                             if c == i:
-                                cil = curses.color_pair(11)
+                                cil = color_pair(11)
                             else:
-                                cil = curses.color_pair(0)
+                                cil = color_pair(0)
                             if spellsprog[i]>=len(spellbook[i]):
                                 gigga = " no more spells."
                             else:
                                 gigga = " " + spellbook[i][spellsprog[i]][2]
-                            addstr_main(3+i,3,classnames[i] + gigga,cil)
+                            stdscr.addstr(3+i,3,classnames[i] + gigga,cil)
                         flush_main()
                         q = getchar()
                         if q == KEYDOWN:
@@ -2566,7 +2609,7 @@ def dopturn(cmd):
             stdscr.clear()
 
             for i in range(1,50):
-                addch_main(2,i,".")
+                stdscr.addch(2,i,".")
 
             
             sss = ", water will enter dungeon in "+str(abs(waterlvl-WATSTEPS)) + " turns."          
@@ -2581,43 +2624,43 @@ def dopturn(cmd):
                     sss = ", water is frozen."
                 for i in range(1,waterlvl//WATSTEPS+1):
                     if waterfrozen:
-                        addch_main(2,i,"/",curses.color_pair(15))
+                        stdscr.addch(2,i,"/",color_pair(15))
                     else:
-                        addch_main(2,i,"~",curses.color_pair(6))
+                        stdscr.addch(2,i,"~",color_pair(6))
 
 
-            addstr_main(1,1,"Floor: "+str(stage).zfill(2) + "/50"+sss)
+            stdscr.addstr(1,1,"Floor: "+str(stage).zfill(2) + "/50"+sss)
             if (waterlvl//WATSTEPS>=stage):  
-                addch_main(2,stage,"@",curses.color_pair(6))
+                stdscr.addch(2,stage,"@",color_pair(6))
             else:
-                addch_main(2,stage,"@")
+                stdscr.addch(2,stage,"@")
 
-            lc = curses.color_pair(2) #5
+            lc = color_pair(2) #5
 
-            addstr_main(4,1," "*30,lc)
-            addstr_main(4,1,"EMERALDS",lc)
+            stdscr.addstr(4,1," "*30,lc)
+            stdscr.addstr(4,1,"EMERALDS",lc)
             for i in range(0,7):
                 for j in range(0,7):
                     if gems[j*7+i]:
-                        addch_main(6+j,2+i,'*',curses.color_pair(2))
+                        stdscr.addch(6+j,2+i,'*',color_pair(2))
                     else:
-                        addch_main(6+j,2+i,'.')
+                        stdscr.addch(6+j,2+i,'.')
 
-            addstr_main(4,15,"EXP "+str(exp)+"/"+str(exprofile(rank)), curses.color_pair(3))
-            addstr_main(6,14,"(          )")
+            stdscr.addstr(4,15,"EXP "+str(exp)+"/"+str(exprofile(rank)), color_pair(3))
+            stdscr.addstr(6,14,"(          )")
             n = exp*10//exprofile(rank)  
-            addstr_main(6,15," "*n,curses.color_pair(6))
+            stdscr.addstr(6,15," "*n,color_pair(6))
 
-            addstr_main(10,15,"SPELLBOOK")
+            stdscr.addstr(10,15,"SPELLBOOK")
             for i in range(0,3):
                 for j in range(0,len(spellbook[i])):
                     if j < min(spellsprog[i],len(spellbook[i])):
-                        ccceee = curses.color_pair(0)
+                        ccceee = color_pair(0)
                     else:
-                        ccceee = curses.color_pair(4)
-                    addstr_main(12+j,15 + 4*i, spellbook[i][j][2][:3].upper(),ccceee)
+                        ccceee = color_pair(4)
+                    stdscr.addstr(12+j,15 + 4*i, spellbook[i][j][2][:3].upper(),ccceee)
     
-            '''addstr_main(4,30, "ORIENTATION")
+            '''stdscr.addstr(4,30, "ORIENTATION")
     
             sttx = 31
             stty = 10
@@ -2638,27 +2681,27 @@ def dopturn(cmd):
                         if (j==3):
                             c=('%',C_WHITEBLUE)
                         if ([i,j]==orientation):
-                            c = ('@',curses.color_pair(0))'''
+                            c = ('@',color_pair(0))'''
 
 
                             
-            addstr_main(4,31,"CURSES",curses.color_pair(4))
+            stdscr.addstr(4,31,"CURSES",color_pair(4))
             if sum(curss) == 0:
-                addstr_main(6,31,"You are fine.")
+                stdscr.addstr(6,31,"You are fine.")
             else:
                 t = 0
                 for c in range(0,len(curss)):
                     if curss[c] > 0:
-                        addstr_main(6+t,31,curses_names[c]+" ("+str(curss[c])+")")
+                        stdscr.addstr(6+t,31,curses_names[c]+" ("+str(curss[c])+")")
                         t+=1
             
 
 
-            addstr_main(18,1,"ATTRIBUTES")
+            stdscr.addstr(18,1,"ATTRIBUTES")
             u = 0
             for j in range(0,len(attributes)):
                 if attributes[j]:
-                    addstr_main(20+u,1,attribute_strings[j][0])
+                    stdscr.addstr(20+u,1,attribute_strings[j][0])
                     u+=1
 
             flush_main()
@@ -2669,7 +2712,7 @@ def dopturn(cmd):
         if cmd == ord('?'):
             stdscr.clear()
             for i in range(0,len(helppanel)):
-                addstr_main(i,0,helppanel[i])
+                stdscr.addstr(i,0,helppanel[i])
             flush_main()
             getchar()
             return False   
@@ -2681,7 +2724,7 @@ def dopturn(cmd):
 
         #suicide
         if cmd == ord('p'):
-            addstr_main(7,7,"Are you sure you want to kill yourself? (Y/N)")
+            stdscr.addstr(7,7,"Are you sure you want to kill yourself? (Y/N)")
             flush_main()
             sure = getchar()
             if (sure in [ord('y'),ord('Y')]):
@@ -2709,7 +2752,7 @@ def dopturn(cmd):
             if cmd == ord('b'):
                 for i in range(0,len(gems)):
                     gems[i] = True
-            if cmd == ord('l'):
+            if cmd == ord(','):
                 stage=34
                 crawlin=False
             return False
@@ -2754,11 +2797,11 @@ while alive:
     
             mapper=dMap()
             stdscr.clear()
-            addstr_main(3,3,"Generating dungeon..." + (trycount>=1)*(" ("+str(trycount)+")"))
+            stdscr.addstr(3,3,"Generating dungeon..." + (trycount>=1)*(" ("+str(trycount)+")"))
             asfd = 5
             reasons = reasons[-5:]
             for r in reasons:
-                addstr_main(asfd,3,r)
+                stdscr.addstr(asfd,3,r)
                 asfd += 1
             flush_main()
 
@@ -2901,7 +2944,7 @@ while alive:
             ("Who has 8 legs and is a God?","Nobody! AHAHAHAHAHAHAHA")
         ])
     
-        addstr_main(3,3,"Adding objects and entities...")
+        stdscr.addstr(3,3,"Adding objects and entities...")
         flush_main()
 
         #add 15 gold pieces
@@ -3127,7 +3170,7 @@ while alive:
                 if s == GN_EMPTY:
                     if abs(e[0]-x)<=1 and abs(e[1]-y)<=1:
                         if gold > 0:
-                            bott = min(20,gold)
+                            bott = min(5,gold)
                             gold -= bott
                             mess("A gnome strips you of your gold!",3)
                             e[5].loot = [0,0,OBJ_GOLD,bott]
@@ -3401,31 +3444,36 @@ while alive:
     
 stdscr.clear()
 flush_main()
+
 if specialending <=1:
     if DEBUG:
-        addstr_main(3,5,"This game was in DEBUG MODE",curses.color_pair(10))
-    addstr_main(2,15,"You are dead.")
-    addstr_main(5,5,"Last messages:")
+        stdscr.addstr(3,5,"This game was in DEBUG MODE",color_pair(10))
+    stdscr.addstr(2,15,"You are dead.")
+    stdscr.addstr(5,5,"Last messages:")
     ppp=7
     for m in reversed(messages):
-        addstr_main(ppp,8,m[0])
+        stdscr.addstr(ppp,8,m[0])
         ppp+=1
 
-    addstr_main(13,5,"You made it to floor "+str(stage)+" with "+str(sum(gems))+" emeralds.")
+    stdscr.addstr(13,5,"You made it to floor "+str(stage)+" with "+str(sum(gems))+" emeralds.")
 
 if specialending == 2:
-    addstr_main(7,16,"You live.")
+    stdscr.addstr(7,16,"You live.")
 
+flush_main()
 
 c = 0
 while not (c in [KEYENTER,ord(' ')]):
     c = getchar()
 
 #END
-curses.nocbreak()
-stdscr.keypad(0)
-curses.echo()
-curses.endwin()
+if GRAPHIC:
+    1
+else:
+    curses.nocbreak()
+    stdscr.keypad(0)
+    curses.echo()
+    curses.endwin()
 
 #print resume
 
@@ -3473,9 +3521,9 @@ else:
 
 
 '''             leng=min(5+2*wand,mana)
-                addstr_main(7,7,"+-CAST SPELL-+")
-                addstr_main(8,7,"*" + (12-leng)/2*" " +leng*"_"  + (13-leng)/2*" "+"*")
-                addstr_main(9,7,"+------------+")
+                stdscr.addstr(7,7,"+-CAST SPELL-+")
+                stdscr.addstr(8,7,"*" + (12-leng)/2*" " +leng*"_"  + (13-leng)/2*" "+"*")
+                stdscr.addstr(9,7,"+------------+")
                 flush_main()
                 c = 0
                 s = ""
@@ -3485,7 +3533,7 @@ else:
                         c=0
                     if chr(c) in ['q','w','e','r']:
                         s+=chr(c)
-                        addstr_main(8,8+ (12-leng)/2,s)
+                        stdscr.addstr(8,8+ (12-leng)/2,s)
                         flush_main()
 
                 mana= max(0,mana - len(s))
