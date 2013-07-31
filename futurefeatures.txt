@@ -3,6 +3,8 @@
 * gnome meat (very nutritive)
 * female gnomes in gnome village
 * fill last level with mobs
-* abstractization of actions
-* smarter turn system
+* abstractization of actions DONE!
+* smarter turn system ALMOST!
 * wrapper for exceptions (no more scrambled terminal windows!)
+* examine command
+* help (keybindings) panel
