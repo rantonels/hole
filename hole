@@ -6,15 +6,17 @@ import sys
 sys.setrecursionlimit(60*60)
 
 DEBUG = False
-UNICODE = -1
+MODE = -1
 if len(sys.argv)>1:
     for a in sys.argv[1:]:
         if a == "-d":
             DEBUG = True
         elif a == "--ascii":
-            UNICODE = 0
+            MODE = 0
         elif a == "--unicode":
-            UNICODE = 1
+            MODE = 1
+        elif a == "--standalone":
+            MODE = 2
         else:
             print("Unrecognized option: "+a)
             exit()
@@ -97,35 +99,111 @@ while WX<67 or WY<26:
     (WY,WX) = stdscr.getmaxyx()
 
     stdscr.addstr(0,0,"SCREEN SIZE INSUFFICIENT. PLEASE RESIZE.")
-    stdscr.refresh()
+    flush_main()
 
+if not DEBUG:
+    MODE = 0
 
-if UNICODE == -1:
+if MODE == -1:
     stdscr.clear()
-    UNICODE = 0
+    MODE = 0
     while True:
-        for i in range(0,2):
-            stdscr.addstr(1+i,1,">"*(i==UNICODE) + ["ASCII","UNICODE"][i] + "   ")
+        for i in range(0,3):
+            stdscr.addstr(1+i,1,">"*(i==MODE) + ["ASCII","UNICODE","STANDALONE/GRAPHICAL"][i] + "   ")
     
-        stdscr.addstr(4 ,1,"Unicode allows for a larger set of characters,")
-        stdscr.addstr(5 ,1,"but your terminal might not support it. If the")
-        stdscr.addstr(6 ,1,"program crashes or some characters are printed")
-        stdscr.addstr(7 ,1,"incorrectly, revert to ASCII.")
-        stdscr.addstr(8 ,1,"Unicode mode requires Python3.3, and is experi")
-        stdscr.addstr(9 ,1,"mental.")
+        stdscr.addstr(5 ,1,"Unicode allows for a larger set of characters,")
+        stdscr.addstr(6 ,1,"but your terminal might not support it. If the")
+        stdscr.addstr(7 ,1,"program crashes or some characters are printed")
+        stdscr.addstr(8 ,1,"incorrectly, revert to ASCII.")
+        stdscr.addstr(9 ,1,"Unicode mode requires Python3.3, and is experi")
+        stdscr.addstr(10 ,1,"mental.")
 
-        stdscr.addstr(10,1,"(P.S.: you can avoid this prompt by appending ")
-        stdscr.addstr(11,1,"--ascii or --unicode when starting Hole.")
+        stdscr.addstr(12,1,"(P.S.: you can avoid this prompt by appending ")
+        stdscr.addstr(13,1,"--ascii or --unicode when starting Hole.")
         stdscr.refresh()
         s=stdscr.getch()
-        if s in [curses.KEY_UP,curses.KEY_DOWN]:
-            UNICODE = not UNICODE
+        if s == curses.KEY_UP:
+            MODE = (MODE - 1)%3
+        if s == curses.KEY_DOWN:
+            MODE = (MODE + 1)%3
         if s == ord('\n'):
             break
+
+if MODE == 1:
+    UNICODE = 1
+else:
+    UNICODE = 0
+
+if MODE == 2:
+    GRAPHIC = 1
+else:
+    GRAPHIC = 0
 
 if UNICODE:
     import locale
     locale.setlocale(locale.LC_ALL,"")
+
+#starting libtcod for graphic mode
+if GRAPHIC:
+    curses.nocbreak()
+    stdscr.keypad(0)
+    curses.echo()
+    curses.endwin()
+
+    import libtcodpy as libtcod
+
+    libtcod.console_set_custom_font('arial10x10.png', libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD)
+    libtcod.console_init_root(67, 26, 'Hole', False)
+    libtcod.console_set_default_foreground(0, libtcod.white)
+
+graphcolors = [(0,1)]*20
+
+if GRAPHIC:
+    KEYUP = libtcod.KEY_UP
+    KEYDOWN = libtcod.KEY_DOWN
+    KEYLEFT = libtcod.KEY_LEFT
+    KEYRIGHT = libtcod.KEY_RIGHT
+    KEYENTER = libtcod.KEY_ENTER
+else:
+    KEYUP = curses.KEY_UP
+    KEYDOWN = curses.KEY_DOWN
+    KEYLEFT = curses.KEY_LEFT
+    KEYRIGHT = curses.KEY_RIGHT
+    KEYENTER = ord('\n')
+
+ 
+
+def addch_main(y,x,char,col=0):
+    if GRAPHIC:
+#        libtcod.console_set_default_foreground(0, graphcolors[col][0])
+#        libtcod.console_set_default_background(0, graphcolors[col][1])
+        libtcod.console_put_char(0,x,y,char, libtcod.BKGND_SET)
+    else:
+        stdscr.addch(y,x,char,curses.color_pair(col))
+
+def addstr_main(y,x,string,col=0):
+    if GRAPHIC:
+#        libtcod.console_set_default_foreground(0, graphcolors[col][0])
+#        libtcod.console_set_default_background(0, graphcolors[col][1])
+        libtcod.console_print(0,x,y, string)
+    else:
+        stdscr.addstr(y,x,string,col)
+
+
+
+def flush_main():
+    if GRAPHIC:
+        libtcod.console_flush()
+    else:
+        stdscr.refresh()
+
+def getchar():
+    if GRAPHIC:
+        k = libtcod.console_wait_for_keypress(True)
+        print(k)
+        return k
+    else:
+        return stdscr.getch()
 
 BXCHARS =   ['+','+','+','+','|','-','+','+','+','+']
 if UNICODE:
@@ -441,6 +519,19 @@ converter = {
 99:5
 }
 
+converter2 = {
+0:0,
+1:2,
+2:12,
+3:3,
+4:3,
+5:3,
+55:11,
+66:8,
+98:6,
+99:5
+}
+
 #TILESET and SPRITESHEET
 tset = {
 0: (' ',0), #walkable empty tile
@@ -455,6 +546,7 @@ tset = {
 9: ('*',2), #emerald walkway
 10: ('.',0),    #emerald walkway (not activated)
 11: ('$',1),    #dirt
+12: ('%',5),    #wood
 
 100: ('~',6),   #water
 101: ('@',10)   #Oskar
@@ -667,7 +759,7 @@ def spellcast(n):
                         
         if len(count)>0:
             i = 0
-            stdscr.addstr(0,3,"CHOOSE TARGET FOR THUNDER",curses.color_pair(10))
+            addstr_main(0,3,"CHOOSE TARGET FOR THUNDER",curses.color_pair(10))
             rays = [get_line(x,y,entities[e][0],entities[e][1]) for e in count]
             while True:
                 for j in range(0,len(count)):
@@ -688,14 +780,14 @@ def spellcast(n):
                 mypad.addch(y,x,'@',curses.color_pair(16))
 
                 mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
-                stdscr.refresh()
-                s = stdscr.getch()
+                flush_main()
+                s = getchar()
                 
-                if s == curses.KEY_LEFT:
+                if s == KEYLEFT:
                     i=(i-1)%len(count)
-                elif s == curses.KEY_RIGHT:
+                elif s == KEYRIGHT:
                     i=(i+1)%len(count)
-                elif s == ord('\n'):
+                elif s == KEYENTER:
                     break
 
             #0 3 10
@@ -719,7 +811,7 @@ def spellcast(n):
     elif n==8: #transmigration
         elemental(EL_THUNDER)
         trange = 3+4*wand
-        stdscr.addstr(0,3,"CHOOSE DIRECTION FOR TRANSMIGRATION",curses.color_pair(10))
+        addstr_main(0,3,"CHOOSE DIRECTION FOR TRANSMIGRATION",curses.color_pair(10))
         count = 0
         dc = 0
         while True:
@@ -740,31 +832,31 @@ def spellcast(n):
                     addchsafe(y+i,x,' ',curses.color_pair(14))
 
             mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
-            stdscr.refresh()
-            ccc = stdscr.getch()    
-            if ccc == curses.KEY_DOWN:
+            flush_main()
+            ccc = getchar()    
+            if ccc == KEYDOWN:
                 if dc != 1:
                     count = 0
                 dc = 1
                 count += 1
-            if ccc == curses.KEY_LEFT:
+            if ccc == KEYLEFT:
                 if dc != 2:
                     count = 0
                 dc = 2
                 count += 1
-            if ccc == curses.KEY_UP:
+            if ccc == KEYUP:
                 if dc != 3:
                     count = 0
                 dc = 3
                 count += 1
-            if ccc == curses.KEY_RIGHT:
+            if ccc == KEYRIGHT:
                 if dc != 0:
                     count = 0
                 dc = 0
                 count += 1
 
             count = min(count,trange)
-            if ccc == ord('\n'):
+            if ccc == KEYENTER:
                 break
         dirs = [ (1,0) , (0,1) , (-1,0), (0,-1) ]
         x += dirs[dc][0] * count
@@ -867,8 +959,12 @@ C_WHITERED = curses.color_pair(9)
 C_WHITEYELLOW = curses.color_pair(11)
 C_WHITEBLUE = curses.color_pair(6)
 
-mypad = curses.newpad(LV_W,LV_H)
-stdscr.refresh()
+if GRAPHIC:
+    mypad = libtcod.console_new(LV_W, LV_H)
+else:
+    mypad = curses.newpad(LV_W,LV_H)
+
+flush_main()
 
 back = curses.newwin(0,0)
 
@@ -1000,21 +1096,21 @@ def finale():
         
     for l in diag:
         stdscr.clear()
-        stdscr.addch(15,20,'@',curses.color_pair(10))   
-        stdscr.addch(15,23,'@',curses.color_pair(0))
-        stdscr.addstr(7,6,"                                             ")
+        addch_main(15,20,'@',curses.color_pair(10))   
+        addch_main(15,23,'@',curses.color_pair(0))
+        addstr_main(7,6,"                                             ")
         n = [name+": ","Oskar: ",""][l[0]]
         dcl = [curses.color_pair(i) for i in [8,10,0]][l[0]]
         s1 = (n+l[1])[:50]
         s2 = ""
         if len(n+l[1])>50:
             s2 = (n+l[1])[50:]
-        stdscr.addstr(7,6,s1,dcl)
-        stdscr.addstr(8,6+len(n),s2,dcl)
+        addstr_main(7,6,s1,dcl)
+        addstr_main(8,6+len(n),s2,dcl)
         if l[0] == 2:
             mess(s1)
         curses.napms(100)
-        stdscr.getch()
+        getchar()
 
     alive = False 
     if not hasletter:
@@ -1452,22 +1548,24 @@ while menu:
     for l in title:
         for i in range(0,len(l)):
             ttlc = curses.color_pair(0)
-            stdscr.addch(ppp,8+i,l[i],ttlc) 
+            addch_main(ppp,8+i,l[i],ttlc) 
         ppp+=1
 
     for i in range(0,len(dada)):
         if n==i:
             sscc = curses.color_pair(1)
+            zibi = "*"
         else:
             sscc = curses.color_pair(0)
-        stdscr.addstr(12+i,7,dada[i],sscc)
-    stdscr.refresh()
-    key = stdscr.getch()
-    if key == curses.KEY_DOWN:
+            zibi = ""
+        addstr_main(12+i,7,zibi+dada[i],sscc)
+    flush_main()
+    key = getchar()
+    if key == KEYDOWN:
         n=(n+1)%len(dada)
-    elif key == curses.KEY_UP:
+    elif key == KEYUP:
         n=(n-1)%len(dada)
-    elif key == ord('\n'):
+    elif key == KEYENTER:
         if n == 0:
             menu = False
             name = "Sasellor"
@@ -1496,34 +1594,34 @@ while menu:
                         cacol = curses.color_pair(1)
                     else:
                         cacol = curses.color_pair(0)
-                    stdscr.addstr(1+j,1,stuff[j],cacol)
+                    addstr_main(1+j,1,stuff[j],cacol)
 
-                stdscr.addstr(1,15,name)
-                stdscr.addstr(2,15,["M","F"][gender])
-                stdscr.addstr(3,15,spellbook[fspell][0][2])
+                addstr_main(1,15,name)
+                addstr_main(2,15,["M","F"][gender])
+                addstr_main(3,15,spellbook[fspell][0][2])
 
                 i = 0
                 for j in range(0,len(attribute_strings)):
                     if attributes[j]:
-                        stdscr.addstr(1+i,27," "+attribute_strings[j][0])
+                        addstr_main(1+i,27," "+attribute_strings[j][0])
                         i+=1
 
 
-                stdscr.refresh()
-                keyy = stdscr.getch()
+                flush_main()
+                keyy = getchar()
 
-                if keyy == curses.KEY_DOWN:
+                if keyy == KEYDOWN:
                     m=(m+1)%len(stuff)
-                elif keyy == curses.KEY_UP:
+                elif keyy == KEYUP:
                     m=(m-1)%len(stuff)
-                elif keyy == ord('\n'): 
+                elif keyy == KEYENTER: 
                     if m==len(stuff)-1:
                         spellsprog = [0]*3
                         spellsprog[fspell] = 1
                         menu = False
                         cock = False
                     if m==0:
-                        stdscr.addstr(1,15,"_"*10)
+                        addstr_main(1,15,"_"*10)
                         curses.echo()
                         name = stdscr.getstr(1,15,10)
                         curses.noecho()
@@ -1539,38 +1637,38 @@ while menu:
                                     cola = curses.color_pair(0)
                                 else:
                                     cola = curses.color_pair(8)
-                                stdscr.addstr(1+i,27," "+attribute_strings[i][0],cola)
-                            stdscr.addch(1+g,27,'*')
-                            stdscr.addstr(3+len(attribute_strings),28,str(ATTRPOINTS - sum(attributes)) + " attribute points left.")
+                                addstr_main(1+i,27," "+attribute_strings[i][0],cola)
+                            addch_main(1+g,27,'*')
+                            addstr_main(3+len(attribute_strings),28,str(ATTRPOINTS - sum(attributes)) + " attribute points left.")
                             
-                            stdscr.addstr(15,2," "*50)
-                            stdscr.addstr(15,2,attribute_strings[g][1])
-                            stdscr.refresh()
-                            zzz = stdscr.getch()
-                            if zzz == curses.KEY_DOWN:
+                            addstr_main(15,2," "*50)
+                            addstr_main(15,2,attribute_strings[g][1])
+                            flush_main()
+                            zzz = getchar()
+                            if zzz == KEYDOWN:
                                 g = (g+1)%len(attribute_strings)
-                            if zzz == curses.KEY_UP:
+                            if zzz == KEYUP:
                                 g = (g-1)%len(attribute_strings)
-                            if zzz == ord('\n'):
+                            if zzz == KEYENTER:
                                 attributes[g] = not attributes[g]
                                 if sum(attributes) > ATTRPOINTS:
                                     attributes[g] = not attributes[g]
-                            if zzz == curses.KEY_LEFT:
+                            if zzz == KEYLEFT:
                                 break
                                 
 
         elif n==2:
             stdscr.clear()
             for j in range(0,len(credits)):
-                stdscr.addstr(j,0,credits[j])
+                addstr_main(j,0,credits[j])
             for j in range(0,len(creditsred)):
                 addstrtrans(stdscr,j,0,creditsred[j],curses.color_pair(4))
             for j in range(0,len(creditsyellow)):
                 addstrtrans(stdscr,j,0,creditsyellow[j],curses.color_pair(3))
-            #stdscr.addch(3,8,'#',curses.color_pair(1))
-            #stdscr.addch(3,10,'#',curses.color_pair(1))
-            stdscr.refresh()
-            stdscr.getch()
+            #addch_main(3,8,'#',curses.color_pair(1))
+            #addch_main(3,10,'#',curses.color_pair(1))
+            flush_main()
+            getchar()
         elif n==3:
             curses.nocbreak()
             stdscr.keypad(0)
@@ -1581,14 +1679,987 @@ while menu:
 
             
     
-'''stdscr.addstr(12,5,"Input your name (Press Enter for random name):")
-stdscr.refresh()
+'''addstr_main(12,5,"Input your name (Press Enter for random name):")
+flush_main()
 curses.echo()
 name = stdscr.getstr(14,6,10)
 curses.noecho()'''
 
+def draw():
+        global lvl,x,y,entities,objects,fow,fog,tset,ssheet,BXCHARS,mana,hp,mxhp,gold,gems,curss,inventory,equip,stage,rank,atk,dfn,attributes
+
+        #DISPLAY / DRAW
+
+        #do fow
+        '''fow = [[0]*LV_H]*LV_W
+
+        for i in range(0,LV_W):
+            for j in range(0,LV_H):
+                fow[i][j] = 0
+
+#       for i in range(x-1,x+2):
+#           for j in range(y-1,y+2):
+#               fow[i][j] = 2'''
+
+        fovBrain.do_fov(x,y,(11 + attributes[ATTR_HAWK_EYE]*5))
+        
+
+        #draw level draw map display level display map
+        
+        visdotchar = '.'
+        if UNICODE:
+            visdotchar = u'⋅'
+
+
+        mypad.erase()
+        for i in range(max(0,x-LW_W),min(x+LW_W,LV_W)):
+            for j in range(max(0,y-LW_H),min(y+LW_H,LV_H-1)):
+                if fag(i,j):
+                    tilecol = curses.color_pair(tset[lvl[i][j]][1])
+                    if lvl[i][j] == 100 and waterfrozen:    
+                        mypad.addch(j,i,'/' , curses.color_pair(15))
+                    elif visibility_dots and lvl[i][j] == 0:
+                            if fovBrain.lit(i,j):
+                                mypad.addstr(j,i,visdotchar,curses.color_pair(8))
+                    elif UNICODE and lvl[i][j] == 1:
+                        total = iswall(i+1,j) + 2*iswall(i,j-1) + 4*iswall(i-1,j) + 8*iswall(i,j+1)
+                        mypad.addstr(j,i,WALLS[total][0].encode('utf-8'),curses.color_pair(WALLS[total][1]))
+                    else:
+                        mypad.addstr(j,i,tset[lvl[i][j]][0] , tilecol  )
+                else:
+                    mypad.addch(j,i,' ',curses.color_pair(0))
+
+
+                #if DEBUG and lvl[i][j] == 0 and not con[i][j] == 1:
+                #    mypad.addch(j,i,'+')
+        #draw objects
+        for o in objects:
+            if fog[o[0]][o[1]] and fovBrain.lit(o[0],o[1]):
+                    if o[2] == OBJ_CHESTMONSTER and o[3] == 0:
+                        mypad.addch(o[1],o[0],ssheet[o[4]][0], curses.color_pair( ssheet[o[4]][1]))
+                    elif o[2] == OBJ_CARCASS:
+                        mypad.addch(o[1],o[0],chr(ord('a')+o[3]),curses.color_pair(0))
+                    else:
+                        mypad.addstr(o[1],o[0],ssheet[o[2]][0], curses.color_pair(ssheet[o[2]][1]))  
+        
+        #draw entities
+        for e in entities:
+            if e[2] == "Gnome" and (not isnonsolid(lvl[e[0]][e[1]])):
+                continue
+            if fog[e[0]][e[1]] and fovBrain.lit(e[0],e[1]):
+                if lvl[e[0]][e[1]] == 8:
+                    c=curses.color_pair(12)
+                else:
+                    if e[2] == "Gnome":
+                        c = curses.color_pair(2)
+                    else:
+                        c=curses.color_pair(4) 
+                mypad.addstr(e[1],e[0],e[3], c)
+                if e[2] == "Dragon":
+                    if e[8].particles == -1:
+                        mypad.addch(e[1]+e[8].by,e[0]+e[8].bx,'~',curses.color_pair(0))
+                    elif e[8].particles > 0:
+                        for i in range(1,1+e[8].particles):
+                            mypad.addch(e[1]+e[8].by*i,e[0]+e[8].bx*i,'*',curses.color_pair(4))
+
+        #draw character
+        if lvl[x][y] == 8:
+            c=curses.color_pair(9)
+        elif curss[CURS_POISON]>0:
+            c=curses.color_pair(2)
+        elif curss[CURS_LOVE]>0:
+            c=curses.color_pair(4)
+        elif curss[CURS_ICE]>0:
+            c=curses.color_pair(8)
+        else:
+            c=curses.color_pair(0) 
+
+        mypad.addch(y,x,'@',c)
+
+        clairvoying = False
+
+        #border
+        back.erase()
+        back.addch(0,0,BXCHARS[0])
+        back.addch(0,LW_W+2,BXCHARS[6])
+        back.addch(LW_H+2,0,BXCHARS[2])
+        for i in range(0,LW_W+1):   
+            back.addch(0,i+1,BXCHARS[5])
+        for i in range(0,LW_W+1):
+            back.addch(LW_H+2,i+1,BXCHARS[5])
+        for i in range(0,LW_H+1):
+            back.addch(i+1,0,BXCHARS[4])
+            back.addch(i+1,LW_W+2,BXCHARS[4])
+        for i in range(0,25):
+            back.addch(i+1,LW_W+25,BXCHARS[4])
+        back.addch(LW_H+2,LW_W+2,BXCHARS[3])
+        back.addch(25,LW_W+25,BXCHARS[3])
+        if DEBUG:
+            back.addstr(0,3,"DEBUG MODE",curses.color_pair(10))
+
+        #info
+        back.addstr(LW_H+3,1, "HP "+str(hp)+"/"+str(mxhp))  
+        back.addstr(LW_H+3,14, "G "+str(gold), curses.color_pair(3))
+        if mana>0:
+            back.addstr(LW_H+3,25, "Mana: "+str(mana), curses.color_pair(8))
+        if gems[stage-1]:
+            back.addstr(LW_H+3,21, "EF!", curses.color_pair(2))
+        ct=0
+        for m in reverse(messages):
+            lecol=curses.color_pair(m[1])
+            back.addstr(LW_H+6+ct,1, m[0], lecol)
+            ct+=1
+
+        back.addstr(LW_H+2,7,"*FLOOR "+str(stage)+" - "+dtypenames[dtype] +"*")
+
+        for i in range(LW_W+3,LW_W+3+22):
+            back.addch(0,i,BXCHARS[5])
+        back.addch(0,LW_W+3+22, BXCHARS[1])
+        back.addstr(1,LW_W+4, name)
+        cs = 0
+        for c in range(0,len(curss)):
+            if curss[c]>0:
+                if curss[c] > 9:
+                    ster = "+"
+                else:
+                    ster = str(curss[c])
+
+                back.addstr(1,LW_W+15+cs,ster,curses.color_pair(curses_colors[c]))
+                cs+=1
+
+        back.addstr(1,LW_W+19, "LV "+str(rank).zfill(2))
+        back.addch(1,LW_W+25,BXCHARS[4])
+
+        for j in range(LW_W+3,LW_W+25):
+            back.addch(6,j,BXCHARS[5])
+            back.addch(2,j,BXCHARS[5])
+        for k in [2,6]:
+            back.addch(k,LW_W+2,BXCHARS[9])
+            back.addch(k,LW_W+25,BXCHARS[8])
+        back.addstr(6,LW_W+2+8, "INVENTORY")
+        for i in range(0,len(inventory)):
+            s = object_names(inventory[i])[:INVCLIP]
+
+            back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
+
+        back.addstr(2,LW_W+2+8,"EQUIPMT")
+
+        for i in range(0,len(equip)):
+            back.addstr(3+i,LW_W+4, object_names(equip[i][0])[:INVCLIP])
+
+        back.addstr(LW_H+4,1,"ATK "+str(atk)+" DEF "+str(dfn))
+
+        if waterlvl >= WATSTEPS:
+            back.addstr(LW_H+4,15, "Water to floor "+str(waterlvl//WATSTEPS))
+
+
+        back.noutrefresh()
+        mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
+    
+        curses.doupdate()
+
+def dopturn(cmd):
+
+        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin
+
+        turn = False
+
+        toosick=False
+        if curss[CURS_POISON] == 1:
+            toosick=True
+            mess("You puke. (-20 HP)",4)
+            objects.append([x,y,OBJ_PUKE])
+            hitp (20,True)
+            return True
+
+        if curss[CURS_POISON] and randint(0,max(0,200-curss[CURS_POISON])//50) == 0:
+            toosick=True
+            mess("You feel sick and can't move",2)
+            return True
+
+        if curss[CURS_ICE] <= 0 and not toosick:
+            nx = x
+            ny = y
+            hasmoved = 0
+            if  cmd == KEYDOWN:
+                ny = min(y+1,LV_H-2)
+                hasmoved = 1
+            elif cmd == KEYUP:
+                ny = max (0,y-1)
+                hasmoved = 1
+            elif cmd == KEYLEFT:
+                nx = max (0,x-1)
+                hasmoved = 1
+            elif cmd == KEYRIGHT:
+                nx = min(x+1,LV_W-1)
+                hasmoved = 1
+            if hasmoved:
+                if isnonsolid(lvl[nx][ny]):
+                    floodfill(nx,ny)
+
+                if iswalkable(nx,ny):
+                    x = nx
+                    y = ny
+                    turn=1  
+                    return True
+                
+                for e in entities: #hit entities hit enemy
+                    if( (e[0]==nx) and (e[1]==ny)):
+
+                        if e[2] == "Gnome" and e[4].status != GN_DONE:
+                            if (len(inventory)<MAXINV) and  (randint(0,2) + (not attributes[ATTR_STRONG_HANDS]))<1:
+                                mess("You catch a Gnome")
+                                inventory.append([0,0,OBJ_GNOME,e[5]])
+                                entities.remove(e)
+                                return True 
+                            else:
+                                mess("The Gnome slips from your hands.")
+                                return True
+
+                        elif ( e[3] == "Succubus")  and curss[CURS_LOVE] > 0:
+                            mess("You are unable to hit the Succubus")
+                            return False
+
+
+                        else:
+                            tpow = atk
+                            for k in equip:
+                                if k[0][2] == OBJ_SWORD:
+                                    tpow = (atk * 3)//2
+                            for k in equip:
+                                if k[0][2] == OBJ_SWORD_GOLDEN:
+                                    tpow = (atk * 5)//2
+                            hite(e,tpow)
+                            return True
+
+
+                if lvl[nx][ny] == 3: #open doors
+                    lvl[nx][ny] = 0
+                    mess("You open the door.")
+                    floodfill(nx,ny,-1,True)
+                    return True
+                if lvl[nx][ny] == 4: #exit
+                    crawlin = False
+                    mess("You descend the stairs...")
+                    return True
+
+                if lvl[nx][ny] == 7: #vending machine
+
+                    exitgiftshop=True
+                    while exitgiftshop:
+                        stdscr.clear()
+                        ppp = 1
+                        for l in vendingback:
+                            addstr_main(ppp,1,l,curses.color_pair(0))
+                            ppp+=1 
+                        addstr_main(1,7,"THAKNAR's - GIFT SHOP")
+
+                        lei = 1
+                        for v in vmachset:
+                            if(v[0] <= gold):
+                                j = 0
+                            else:
+                                j = 4
+    
+                            s = "ERROR"
+                            if v[1] == 0:
+                                s = "Gold plate it!"
+                            elif v[1] == 1:
+                                s = object_names(v[2])
+                            addstr_main(lei + 3,6,str(lei) + ") "+ (goodstring(s)) + str(v[0])+"* ", curses.color_pair(j))
+                            lei+=1
+                        addstr_main(11,3,vmachword[0])
+                        addstr_main(12,3,vmachword[1])
+
+
+                        flush_main()
+                        rrrr=getchar()
+                        if rrrr in [KEYENTER]:
+                            exitgiftshop=False
+                        elif rrrr in range(ord('1'),ord('1')+len(vmachset)):
+                            ind = rrrr-ord('1')
+                            if vmachset[ind][1] == 0:
+                                stdscr.clear()
+                                addstr_main(1,1,"Choose an item to gold plate")
+                                getchar()
+                            if vmachset[ind][1] == 1:
+                                if gold >= vmachset[ind][0]:
+                                    b = curses.color_pair(5)
+                                    if len(inventory)<MAXINV:
+                                        gold -= vmachset[ind][0]
+                                        inventory.append(vmachset[ind][2])
+                                        addstr_main(3,4,"+----------------------+",b)
+                                        addstr_main(4,4,"*    Good choice!      *",b)
+                                        addstr_main(5,4,"*Thanks for stopping by*",b)
+                                        addstr_main(6,4,"+----------------------+",b)
+                                    else:
+                                        addstr_main(4,6,"+---------------+",b)
+                                        addstr_main(5,6,"|Inventory full.|",b)
+                                        addstr_main(6,6,"+---------------+",b)
+                                    flush_main()
+                                    getchar()
+                    
+                    return False
+   
+
+                if lvl[nx][ny] == 101: #finale
+                    finale()
+                    return True
+
+
+        #d button drop item
+        if cmd == ord('d') and (len(inventory)+len(equip))>0:
+            addstr_main(7,7,"Select the item you want to drop")
+            n = 0
+            lawlz = False
+            while True:
+                for i in range(0,len(inventory)):
+                    s = object_names(inventory[i])[:INVCLIP]
+                    back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
+                for i in range(0,len(equip)):
+                    back.addstr(3+i,LW_W+4, object_names(equip[i][0])[:INVCLIP])
+
+                if n < len(equip):
+                    back.addstr(3+n,LW_W+4, object_names(equip[n][0])[:INVCLIP], curses.color_pair(9))
+                else:
+                    s = object_names(inventory[n-len(equip)])[:INVCLIP]
+                    back.addstr(7+n-len(equip),LW_W+4, s,curses.color_pair(9))
+                back.noutrefresh()
+                flush_main()
+                s = getchar()
+
+                if s == KEYDOWN:
+                    n = (n+1)%(len(inventory)+len(equip))
+                elif s == KEYUP:
+                    n = (n-1)%(len(inventory)+len(equip))
+                elif s == KEYENTER:
+                    lawlz = True
+                    turn = True
+                    break
+                else:
+                    turn = False
+                    break
+
+            it = n
+            if lawlz:
+                    
+                if it>=len(equip):
+                    pos = it - len(equip)
+                    #special droppings
+                    if inventory[pos][2] == OBJ_GNOME:
+                        mess("You let "+inventory[pos][3].name+" go")
+                        gibby = [x,y]+bosses["Gnome"] + [gnomeBrain(),inventory[pos][3]]
+                        gibby[4].status = GN_FULL
+                        entities.append(gibby)
+                        del inventory[pos]
+                    else: #ordinary droppings (special effects)
+                        sbobs=False
+                        if inventory[pos][2] == OBJ_STONE:
+                            for e in objects:
+                                if (e[2] == OBJ_PLANT) and (e[4] == 1 ) and (e[0]==x) and (e[1]==y):
+                                    sbobs = True
+                        mess("You drop the "+object_names(inventory[pos]))
+                        if lvl[x][y] == 8:
+                            mess("...it is consumed by the lava")
+                        else:
+                            objects.append([x,y]+inventory[pos][2:])
+
+                        del inventory[pos]
+
+                        if sbobs:
+                            mess("The stone breaks the Stramonium")
+                            mess("Out comes a litte seed...")
+                            objects.append([x,y,OBJ_STRAMONIUM_SEED])
+                else: 
+                    pos = it
+                    mess("You drop the "+object_names(equip[pos][0]))
+                    if lvl[x][y] == 8:
+                        mess("...it is consumed by the lava")
+                    else:
+                        objects.append([x,y]+equip[pos][0][2:])
+                        del equip[pos]
+            return turn
+    
+        
+        #a button pick up objects
+        if cmd == ord('a'):
+            found=[]
+            oc = objects
+            MAXAX = 10
+            ccc = 0
+            for i in range(0,len(oc)):
+                o = oc[i]
+                if ((o[0] == x) and (o[1] == y)):
+                    found.append(i)
+                    ccc+=1
+                if ccc >= MAXAX:
+                    break
+
+            if len(found)==0:
+                o = -1
+                mess("There is nothing here.")
+
+            elif len(found)==1:
+                o = oc[found[0]]
+            else:
+                z = 0
+                while True:
+                    h = 5
+                    for j in range(0,len(found)):
+                        f = found[j]
+                        if j == z:
+                            c = curses.color_pair(1)
+                        else:
+                            c = curses.color_pair(0)
+                        addstr_main(h,5,object_names(oc[f]),c)
+                        h+=1
+                    flush_main()
+                    fff = getchar()
+                    if fff == KEYUP:
+                        z = (z-1)%len(found)
+                    elif fff == KEYDOWN:
+                        z = (z+1)%len(found)
+                    elif fff == KEYENTER:
+                        break
+                    else:
+                        return False
+                o = oc[found[z]]
+            
+
+            if o != -1:
+                    if o[2] == OBJ_PUKE:
+                        mess("Someone else is going to clean that.")
+                        return False
+                    elif o[2] == OBJ_CHESTMONSTER:
+                        mess("The object explodes in a swarm of enemies",4)
+                        w = randint(3,8)
+                        koth = []
+                        cnt = 0
+                        for p in range(0,w):
+                            px = x
+                            py = y
+                            while (not isfreepos(px,py)) and cnt < 500 and (not [px,py] in koth):
+                                cnt +=1
+                                px += randint(-1,1)
+                                py += randint(-1,1)
+                                px = max(0, min(px,LV_W-1))
+                                py = max(0, min(py,LV_H-1))
+                            koth.append([px,py])
+
+                        for j in koth:
+                            entities.append(j+list(mobs[randint(stage//3,stage//2)]))
+                        objects.remove(o)
+                        return True
+                    elif o[2] == OBJ_PLANT:
+                        if additem(o):
+                            mess("You pick up a "+object_names(o))
+                            if o[3] == 1:
+                                gloves=0
+                                for k in equip:
+                                    if k[0][2]==OBJ_GLOVES:
+                                        gloves=1
+                                if gloves == 0:
+                                    hitp(10,True)
+                                    mess("You got stung by the herb. -10 HP",4)
+                            objects.remove(o)
+                            return True
+                        else:
+                            mess("Your inventory is full",3)
+                            return False
+                    else:
+                        if additem(o):
+                            mess("You pick up a "+object_names(o))
+                            objects.remove(o)
+                            return True
+                        else:
+                            mess("Your inventory is full",3)
+                            return False
+        
+        #cast spell
+        if cmd == ord('c'):
+            if mana > 0:
+                wand = 0
+                for k in equip:
+                    if k[0][2]==OBJ_WAND:
+                        wand = 1
+    
+                ccc = [curses.color_pair(n) for n in [6,9,11,1]]
+                cck = [curses.color_pair(n) for n in [8,4,3,0]]
+                l = 0
+                c = 0
+                doit = False
+                
+                patch = [ [j,i, mypad.inch(j,i) ] for i in range(max(0,x-10),min(LV_W,x+10)) for j in range(max(0,y-10),min(LV_H,y+10))]
+                while not doit:
+                    for gag in patch:
+                        addchsafe(gag[0],gag[1],gag[2],curses.color_pair(0))
+                    if l!=3:
+                        
+                        rw = spellrange(spellbook[l][c][1])
+                        if rw > -1: 
+                            y0 = max(0,y-rw)
+                            y1 = min(LV_H-1,y+rw)
+                            x0 = max(0,x-rw)
+                            x1 = min(LV_W-1,x+rw)
+
+                            jobs = [ [j,i] for j in [y0,y,y1] for i in [x0,x,x1] ]
+                            for jib in jobs:
+                                if jib != [y,x]:
+                                    addchsafe(jib[0],jib[1],'*',cck[l])
+
+                    mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
+                        
+                    for p in range(0,10):
+                        addstr_main(2+p,LW_W+4,' '*13,0)
+                    t = 0
+                    for i in range(0,4):
+                        if l==i:
+                            addstr_main(2,LW_W+4+t,classnames[i].ljust(10),ccc[i])
+                            if l!=3:
+                            
+                                for i in range(0,min(spellsprog[l],len(spellbook[l]))):
+                                    if c == i:
+                                        sbcol = curses.color_pair(13)
+                                    else:
+                                        sbcol = cck[l]
+                                    addstr_main(3+i,LW_W+4+t,(str(spellbook[l][i][0])+" "+spellbook[l][i][2]).ljust(10),sbcol)
+                            t+=10
+                        else:
+                            addch_main(2,LW_W+4+t,'*',ccc[i]) 
+                            t+=1
+                    
+                    flush_main()
+                    lek=getchar()
+                    if lek == KEYRIGHT:
+                        l = (l+1)%4
+                        c = 0
+                    if lek == KEYLEFT:
+                        l = (l-1)%4
+                        c = 0                   
+                    if lek == KEYUP and l!=3:
+                        c = (c-1)%min(spellsprog[l],len(spellbook[l]))
+                    if lek == KEYDOWN and l!=3:
+                        c = (c+1)%min(spellsprog[l],len(spellbook[l]))
+
+                    if lek == KEYENTER:
+                        doit = True
+
+                if (l != 3) and (spellsprog[l]>0):
+                    if mana >= spellbook[l][c][0]:
+                        spellcast(spellbook[l][c][1])
+                        mana -= spellbook[l][c][0]
+                        return True
+                    else:
+                        mess("You don't have the mana for that.",3)
+                        return False
+
+                else:
+                    return False
+                        
+            else:
+                mess("You don't have any mana to perform magic with",3)
+                return False
+    
+        # use object (0-9)
+        lawlz = False
+#       if cmd  in range(ord('0'),ord('9')+1):
+#           lawlz = True    
+#           touse = cmd-ord('0')
+        if cmd == ord('u') and len(inventory)>0:
+            n = 0
+            while True:
+                for i in range(0,len(inventory)):
+                    s = object_names(inventory[i])[:INVCLIP]
+                    back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
+                s = object_names(inventory[n])[:INVCLIP]
+                back.addstr(7+n,LW_W+4, s,curses.color_pair(6))
+                back.noutrefresh()
+                flush_main()
+                s = getchar()
+
+                if s == KEYDOWN:
+                    n = (n+1)%len(inventory)
+                elif s == KEYUP:
+                    n = (n-1)%len(inventory)
+                elif s == KEYENTER:
+                    lawlz = True
+                    touse = n
+                    break
+                else:
+                    return False
+                    break
+    
+        if lawlz:
+            turn = True
+            if touse in range(0,len(inventory)):
+                idd = inventory[touse][2]
+                if idd == OBJ_LETTER:
+                    data = [
+",---------------------------------------------.",
+"(G|                                           |"] + [
+"  |                                           |"]*20 + [
+"  | .-------------------------------------------.",
+"  l  )                                          )",
+"   '=-------------------------------------------'"]
+
+                    data2 = [
+    "Dear {0},".format(name),
+    "   It has been noted you are a valuable  ",
+    "warrior. We thought it would be extremely",
+    "nice if you descended through the dark   ",
+    "rooms of the deep dungeon of {0}".format(dungeonname),
+    "where the dark mage Oskar, escaped from  ",
+    "the Royal Prisons, is hiding, and murder ",
+    "him. The reward will be conspicuous.     ",
+    "",
+    "                        His Majesty      "
+                    ]
+
+                    yyy=2
+                    for l in data:
+                        addstr_main(yyy,2,l)
+                        yyy+=1
+                    yyy=4
+                    for l in data2:
+                        addstr_main(yyy,6,l)
+                        yyy+=2  
+                    flush_main()
+                    getchar()
+                elif idd == OBJ_PAPER:
+                    data = clues[inventory[touse][3]]                   
+                    yyy=2
+                    for l in data:
+                        addstr_main(yyy,2,l)
+                        yyy+=1
+       
+                    flush_main() 
+                    getchar()
+                    
+                elif idd == OBJ_BREAD:
+                    mess("You eat the bread. +25 HP",2)
+                    hp = min(mxhp,hp+25)
+                    del inventory[touse]
+                elif idd == OBJ_GOULASH:
+                    mess("You eat the goulash. +50 HP",2)
+                    hp = min(mxhp,hp+50)
+                    del inventory[touse]
+                elif idd == OBJ_PASTA:
+                    mess("You eat the pasta. +100 HP",2)
+                    hp = min(mxhp,hp+100)
+                    del inventory[touse]
+                elif idd == OBJ_CARCASS:
+                    if randint(0,1)==0:
+                        s=inventory[touse][3]*2 + randint(0,2)
+                        mess("You eat the carcass (+"+str(s)+" HP)",2)
+                        hp = min(mxhp,hp+s)
+                    else:
+                        mess("The meat makes you horribly sick",3)
+                        curss[CURS_POISON] += 60 + randint(0,30)
+                    del inventory[touse]
+                elif idd == OBJ_FAIRY_LIVER:
+                    b = randint(40,80)
+                    mess("You eat the liver. +"+str(b)+" MANA")
+                    mana += b
+                    del inventory[touse]
+                elif idd == OBJ_GNOME:
+                    l = inventory[touse][3].loot 
+                    if l == -1:
+                        mess("The gnome is not carrying anything")
+                    elif l[2] == OBJ_GOLD:
+                        mess("You get back your money")
+                        gold += l[3]
+                    else:
+                        mess("You shake the gnome and your "+object_names(l) +" comes out.")
+                        objects.append([x,y] + l[2:])
+
+                    inventory[touse][3].loot = -1
+
+                elif idd == OBJ_PLANT:
+                    species = inventory[touse][4]
+                    adj = inventory[touse][3]
+                    bonus = 1
+                    if adj == 5:
+                        bonus = 4
+                    elif adj == 4:
+                        bonus = 2
+                    elif adj == 1:
+                        mess("You get stung by the herb (-10 HP)")
+                        hitp(10,True)
+                    elif adj == 2:
+                        mess("This plant is sacred to the gods. +2 MANA")
+                        mana=min(mana+2,MAXMANA)
+                    elif adj == 3:
+                        if curss[CURS_ICE] > 0:
+                            mess("The plant unfreezes you")
+                        curss[CURS_ICE] = 0
+                    
+                    if(species == 0):
+                        hp = min(mxhp,hp+40*bonus)
+                        mess("The herb makes you healthier. (+"+str(40*bonus)+" HP)")
+                    elif species == 1:
+                        hitp(70*bonus,True)
+                        curss[CURS_POISON] = 150
+                        mess("You eat the herb and feel very, very ill...",4)
+                    elif species == 2:
+                        mana=min(mana+2*bonus,MAXMANA)
+                        mess("You eat the Sage. (MANA +"+str(2*bonus)+")")
+                    elif species == 3:
+                        if randint(0,4)<3:
+                            atk+=bonus
+                            mess("The herb makes you stronger. (ATK +"+str(bonus)+")")
+                        else:
+                            mess("You eat the herb, but nothing happens.")
+                    elif species == 4:
+                        if randint(0,2)==0:
+                            dfn+=bonus
+                            mess("You feel more resistant. (DEF +"+str(bonus)+")")
+                        else:
+                            mess("You eat the herb, but nothing happens.")
+                    else:
+                        mess("You eat the herb, but nothing happens.")
+                        
+                    del inventory[touse]
+
+                elif idd == OBJ_BOOK_BOTANY:
+                    count = 0
+                    for p in inventory:
+                        if p[2] == OBJ_PLANT:
+                            if p[5] == 0:
+                                count += 1
+                            p[5] = 1
+                    mess(str(count)+" plants were identified.")
+                    del inventory[touse]
+                elif idd == OBJ_BOOK_TELEPORTATION:
+                    spellcast(SPELL_TELEPORT)
+                    del inventory[touse]
+                elif idd == OBJ_BOOK_FIRE:
+                    spellcast(SPELL_FIRE)
+                    del inventory[touse]
+                elif idd == OBJ_BOOK_THUNDER:
+                                        spellcast(SPELL_THUNDER)
+                                        del inventory[touse]
+
+                elif idd == OBJ_BOOK_GEOGRAPHY:
+                    exx=-1
+                    exy=-1
+                    for i in range(0,LV_W):
+                        for j in range(0,LV_H):
+                            if lvl[i][j] == 4:
+                                exx=i
+                                exy=j
+                    if (exx>=0) and (exy>=0):
+                        nonon=""
+                        if (exx-x>0):
+                            nonon+= str(exx-x)+"E " 
+                        elif exx-x<0:
+                            nonon+= str(x-exx)+"W "
+
+                        if (exy-y>0):
+                            nonon+=str(exy-y)+"S"
+                        elif (exy-y<0):
+                            nonon+=str(y-exy)+"N"
+                        
+                        mess("Exit is "+nonon+" from you.")
+                    else:
+                        mess("There is no exit...")
+                    del inventory[touse]
+
+                elif idd == OBJ_BOOK_TRANSMIGRATION:
+                    spellcast(SPELL_TRANSMIGRATION)
+                    del inventory[touse]                        
+
+
+
+                elif idd == OBJ_HANDBOOK:
+                
+                    jobby=False
+                    c = 0
+                    while not jobby:
+                        addstr_main(0,2,"CHOOSE CATEGORY",curses.color_pair(10))
+                        for i in range(0,3):
+                            if c == i:
+                                cil = curses.color_pair(11)
+                            else:
+                                cil = curses.color_pair(0)
+                            if spellsprog[i]>=len(spellbook[i]):
+                                gigga = " no more spells."
+                            else:
+                                gigga = " " + spellbook[i][spellsprog[i]][2]
+                            addstr_main(3+i,3,classnames[i] + gigga,cil)
+                        flush_main()
+                        q = getchar()
+                        if q == KEYDOWN:
+                            c = (c+1)%3
+                        if q == KEYUP:
+                            c = (c-1)%3
+                        if q == KEYENTER:
+                            jobby = True
+                    spellsprog[c] += 1
+                    mess("You learn a new spell.")
+
+                    del inventory[touse]
+         
+
+                elif idd in range(200,300):
+                    if len(equip) < 3:
+                        mess("You equip the "+object_names(inventory[touse]))
+                        equip.append([inventory[touse],100])
+                        del inventory[touse]
+                    else:
+                        mess("You can't equip any more items")
+
+                else:
+                    turn = False
+                    mess("You cannot use that.")
+            else:
+                turn = False
+                mess("That slot is empty")
+            return turn
+
+        #i button (stats screen)
+        if cmd == ord('i'):
+            stdscr.clear()
+
+            for i in range(1,50):
+                addch_main(2,i,".")
+
+            
+            sss = ", water will enter dungeon in "+str(abs(waterlvl-WATSTEPS)) + " turns."          
+            if waterfrozen:
+                sss = ", water is frozen."
+            sad = ""
+
+            if (waterlvl//WATSTEPS)>0:
+                sad = " (next in "+str(WATSTEPS - waterlvl%WATSTEPS) + " turns.)"
+                sss = ", water at floor "+str(waterlvl//WATSTEPS) + sad
+                if waterfrozen:
+                    sss = ", water is frozen."
+                for i in range(1,waterlvl//WATSTEPS+1):
+                    if waterfrozen:
+                        addch_main(2,i,"/",curses.color_pair(15))
+                    else:
+                        addch_main(2,i,"~",curses.color_pair(6))
+
+
+            addstr_main(1,1,"Floor: "+str(stage).zfill(2) + "/50"+sss)
+            if (waterlvl//WATSTEPS>=stage):  
+                addch_main(2,stage,"@",curses.color_pair(6))
+            else:
+                addch_main(2,stage,"@")
+
+            lc = curses.color_pair(2) #5
+
+            addstr_main(4,1," "*30,lc)
+            addstr_main(4,1,"EMERALDS",lc)
+            for i in range(0,7):
+                for j in range(0,7):
+                    if gems[j*7+i]:
+                        addch_main(6+j,2+i,'*',curses.color_pair(2))
+                    else:
+                        addch_main(6+j,2+i,'.')
+
+            addstr_main(4,15,"EXP "+str(exp)+"/"+str(exprofile(rank)), curses.color_pair(3))
+            addstr_main(6,14,"(          )")
+            n = exp*10//exprofile(rank)  
+            addstr_main(6,15," "*n,curses.color_pair(6))
+
+            addstr_main(10,15,"SPELLBOOK")
+            for i in range(0,3):
+                for j in range(0,len(spellbook[i])):
+                    if j < min(spellsprog[i],len(spellbook[i])):
+                        ccceee = curses.color_pair(0)
+                    else:
+                        ccceee = curses.color_pair(4)
+                    addstr_main(12+j,15 + 4*i, spellbook[i][j][2][:3].upper(),ccceee)
+    
+            '''addstr_main(4,30, "ORIENTATION")
+    
+            sttx = 31
+            stty = 10
+            for i in range(0,5):
+                for j in range(0,5):
+                    if(i+j<=4):
+                        c=(' ',C_WHITE)
+                        if (i==0) and (j==0):
+                            c=(' ',C_WHITERED)
+                        if (i==4) and (j==0):
+                            c=(' ',C_WHITEYELLOW)
+                        if (i==0) and (j==4):
+                            c=(' ',C_WHITEBLUE)
+                        if (i+j == 1):
+                            c=('%',C_WHITERED)
+                        if (i==3):
+                            c=('%',C_WHITEYELLOW)
+                        if (j==3):
+                            c=('%',C_WHITEBLUE)
+                        if ([i,j]==orientation):
+                            c = ('@',curses.color_pair(0))'''
+
+
+                            
+            addstr_main(4,31,"CURSES",curses.color_pair(4))
+            if sum(curss) == 0:
+                addstr_main(6,31,"You are fine.")
+            else:
+                t = 0
+                for c in range(0,len(curss)):
+                    if curss[c] > 0:
+                        addstr_main(6+t,31,curses_names[c]+" ("+str(curss[c])+")")
+                        t+=1
+            
+
+
+            addstr_main(18,1,"ATTRIBUTES")
+            u = 0
+            for j in range(0,len(attributes)):
+                if attributes[j]:
+                    addstr_main(20+u,1,attribute_strings[j][0])
+                    u+=1
+
+            flush_main()
+            getchar()
+            return False
+
+        #suicide
+        if cmd == ord('p'):
+            addstr_main(7,7,"Are you sure you want to kill yourself? (Y/N)")
+            flush_main()
+            sure = getchar()
+            if (sure in [ord('y'),ord('Y')]):
+                mess("You commit suicide.")
+                crawlin=False
+                alive=False
+            return True
+
+        #toggle dots toggle visibility toggle fov toggle
+        if cmd == ord('v'):
+            visibility_dots = not visibility_dots
+            return False
+
+        #DEBUG COMMANDS 
+        #next level
+        #mana cheat
+        if DEBUG:
+            if cmd == ord('n'):
+                crawlin=False
+                return True
+            if cmd == ord('m'):
+                gold=999
+                mana=999
+                givexp(500)
+            if cmd == ord('b'):
+                for i in range(0,len(gems)):
+                    gems[i] = True
+            if cmd == ord('l'):
+                stage=34
+                crawlin=False
+            return False
+
+        return turn
+
+
 stdscr.clear()
-stdscr.refresh()
+flush_main()
 
 if DEBUG:
     spellsprog = [9]*3
@@ -1624,13 +2695,13 @@ while alive:
     
             mapper=dMap()
             stdscr.clear()
-            stdscr.addstr(3,3,"Generating dungeon..." + (trycount>=1)*(" ("+str(trycount)+")"))
+            addstr_main(3,3,"Generating dungeon..." + (trycount>=1)*(" ("+str(trycount)+")"))
             asfd = 5
             reasons = reasons[-5:]
             for r in reasons:
-                stdscr.addstr(asfd,3,r)
+                addstr_main(asfd,3,r)
                 asfd += 1
-            stdscr.refresh()
+            flush_main()
 
             reasons = []
 
@@ -1647,7 +2718,7 @@ while alive:
             else:
                 dtype = 1
                 mapper.makeVillage(60,60)
-                lvl = [[converter[mapper.caveArr[j][i]] for i in range(0,LV_W)] for j in range(0,LV_H)]
+                lvl = [[converter2[mapper.caveArr[j][i]] for i in range(0,LV_W)] for j in range(0,LV_H)]
             
             #correct naked edges
             for i in range(LV_W):
@@ -1771,8 +2842,8 @@ while alive:
             ("Who has 8 legs and is a God?","Nobody! AHAHAHAHAHAHAHA")
         ])
     
-        stdscr.addstr(3,3,"Adding objects and entities...")
-        stdscr.refresh()
+        addstr_main(3,3,"Adding objects and entities...")
+        flush_main()
 
         #add 15 gold pieces
         for c in range(0,15):
@@ -1949,933 +3020,19 @@ while alive:
 #           fog[i][j] = 1
     
     stdscr.clear()
-    stdscr.refresh()
+    flush_main()
 
     crawlin=True
     while alive and crawlin:
-        #DISPLAY / DRAW
-
-        #do fow
-        '''fow = [[0]*LV_H]*LV_W
-
-        for i in range(0,LV_W):
-            for j in range(0,LV_H):
-                fow[i][j] = 0
-
-#       for i in range(x-1,x+2):
-#           for j in range(y-1,y+2):
-#               fow[i][j] = 2'''
-
-        fovBrain.do_fov(x,y,(11 + attributes[ATTR_HAWK_EYE]*5))
         
-
-        #draw level draw map display level display map
-        
-        visdotchar = '.'
-        if UNICODE:
-            visdotchar = u'⋅'
-
-
-        mypad.erase()
-        for i in range(max(0,x-LW_W),min(x+LW_W,LV_W)):
-            for j in range(max(0,y-LW_H),min(y+LW_H,LV_H-1)):
-                if fag(i,j):
-                    tilecol = curses.color_pair(tset[lvl[i][j]][1])
-                    if lvl[i][j] == 100 and waterfrozen:    
-                        mypad.addch(j,i,'/' , curses.color_pair(15))
-                    elif visibility_dots and lvl[i][j] == 0:
-                            if fovBrain.lit(i,j):
-                                mypad.addstr(j,i,visdotchar,curses.color_pair(8))
-                    elif UNICODE and lvl[i][j] == 1:
-                        total = iswall(i+1,j) + 2*iswall(i,j-1) + 4*iswall(i-1,j) + 8*iswall(i,j+1)
-                        mypad.addstr(j,i,WALLS[total][0].encode('utf-8'),curses.color_pair(WALLS[total][1]))
-                    else:
-                        mypad.addstr(j,i,tset[lvl[i][j]][0] , tilecol  )
-                else:
-                    mypad.addch(j,i,' ',curses.color_pair(0))
-
-
-                #if DEBUG and lvl[i][j] == 0 and not con[i][j] == 1:
-                #    mypad.addch(j,i,'+')
-        #draw objects
-        for o in objects:
-            if fog[o[0]][o[1]] and fovBrain.lit(o[0],o[1]):
-                    if o[2] == OBJ_CHESTMONSTER and o[3] == 0:
-                        mypad.addch(o[1],o[0],ssheet[o[4]][0], curses.color_pair( ssheet[o[4]][1]))
-                    elif o[2] == OBJ_CARCASS:
-                        mypad.addch(o[1],o[0],chr(ord('a')+o[3]),curses.color_pair(0))
-                    else:
-                        mypad.addstr(o[1],o[0],ssheet[o[2]][0], curses.color_pair(ssheet[o[2]][1]))  
-        
-        #draw entities
-        for e in entities:
-            if e[2] == "Gnome" and (not isnonsolid(lvl[e[0]][e[1]])):
-                continue
-            if fog[e[0]][e[1]] and fovBrain.lit(e[0],e[1]):
-                if lvl[e[0]][e[1]] == 8:
-                    c=curses.color_pair(12)
-                else:
-                    if e[2] == "Gnome":
-                        c = curses.color_pair(2)
-                    else:
-                        c=curses.color_pair(4) 
-                mypad.addstr(e[1],e[0],e[3], c)
-                if e[2] == "Dragon":
-                    if e[8].particles == -1:
-                        mypad.addch(e[1]+e[8].by,e[0]+e[8].bx,'~',curses.color_pair(0))
-                    elif e[8].particles > 0:
-                        for i in range(1,1+e[8].particles):
-                            mypad.addch(e[1]+e[8].by*i,e[0]+e[8].bx*i,'*',curses.color_pair(4))
-
-        #draw character
-        if lvl[x][y] == 8:
-            c=curses.color_pair(9)
-        elif curss[CURS_POISON]>0:
-            c=curses.color_pair(2)
-        elif curss[CURS_LOVE]>0:
-            c=curses.color_pair(4)
-        elif curss[CURS_ICE]>0:
-            c=curses.color_pair(8)
-        else:
-            c=curses.color_pair(0) 
-
-        mypad.addch(y,x,'@',c)
-
-        clairvoying = False
-
-        #border
-        back.erase()
-        back.addch(0,0,BXCHARS[0])
-        back.addch(0,LW_W+2,BXCHARS[6])
-        back.addch(LW_H+2,0,BXCHARS[2])
-        for i in range(0,LW_W+1):   
-            back.addch(0,i+1,BXCHARS[5])
-        for i in range(0,LW_W+1):
-            back.addch(LW_H+2,i+1,BXCHARS[5])
-        for i in range(0,LW_H+1):
-            back.addch(i+1,0,BXCHARS[4])
-            back.addch(i+1,LW_W+2,BXCHARS[4])
-        for i in range(0,25):
-            back.addch(i+1,LW_W+25,BXCHARS[4])
-        back.addch(LW_H+2,LW_W+2,BXCHARS[3])
-        back.addch(25,LW_W+25,BXCHARS[3])
-        if DEBUG:
-            back.addstr(0,3,"DEBUG MODE",curses.color_pair(10))
-
-        #info
-        back.addstr(LW_H+3,1, "HP "+str(hp)+"/"+str(mxhp))  
-        back.addstr(LW_H+3,14, "G "+str(gold), curses.color_pair(3))
-        if mana>0:
-            back.addstr(LW_H+3,25, "Mana: "+str(mana), curses.color_pair(8))
-        if gems[stage-1]:
-            back.addstr(LW_H+3,21, "EF!", curses.color_pair(2))
-        ct=0
-        for m in reverse(messages):
-            lecol=curses.color_pair(m[1])
-            back.addstr(LW_H+6+ct,1, m[0], lecol)
-            ct+=1
-
-        back.addstr(LW_H+2,7,"*FLOOR "+str(stage)+" - "+dtypenames[dtype] +"*")
-
-        for i in range(LW_W+3,LW_W+3+22):
-            back.addch(0,i,BXCHARS[5])
-        back.addch(0,LW_W+3+22, BXCHARS[1])
-        back.addstr(1,LW_W+4, name)
-        cs = 0
-        for c in range(0,len(curss)):
-            if curss[c]>0:
-                if curss[c] > 9:
-                    ster = "+"
-                else:
-                    ster = str(curss[c])
-
-                back.addstr(1,LW_W+15+cs,ster,curses.color_pair(curses_colors[c]))
-                cs+=1
-
-        back.addstr(1,LW_W+19, "LV "+str(rank).zfill(2))
-        back.addch(1,LW_W+25,BXCHARS[4])
-
-        for j in range(LW_W+3,LW_W+25):
-            back.addch(6,j,BXCHARS[5])
-            back.addch(2,j,BXCHARS[5])
-        for k in [2,6]:
-            back.addch(k,LW_W+2,BXCHARS[9])
-            back.addch(k,LW_W+25,BXCHARS[8])
-        back.addstr(6,LW_W+2+8, "INVENTORY")
-        for i in range(0,len(inventory)):
-            s = object_names(inventory[i])[:INVCLIP]
-
-            back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
-
-        back.addstr(2,LW_W+2+8,"EQUIPMT")
-
-        for i in range(0,len(equip)):
-            back.addstr(3+i,LW_W+4, object_names(equip[i][0])[:INVCLIP])
-
-        back.addstr(LW_H+4,1,"ATK "+str(atk)+" DEF "+str(dfn))
-
-        if waterlvl >= WATSTEPS:
-            back.addstr(LW_H+4,15, "Water to floor "+str(waterlvl//WATSTEPS))
-
-
-        back.noutrefresh()
-        mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
-    
-        curses.doupdate()
-
-        #INPUT
-        cmd = stdscr.getch()
-
-        #COMPUTE
-        turn=0
-        #movement
-
-        toosick=False
-        if curss[CURS_POISON] == 1:
-            toosick=True
-            mess("You puke. (-20 HP)",4)
-            objects.append([x,y,OBJ_PUKE])
-            hitp (20,True)
-        if curss[CURS_POISON] and randint(0,max(0,200-curss[CURS_POISON])//50) == 0:
-            toosick=True
-            mess("You feel sick and can't move",2)
-
-        if curss[CURS_ICE] <= 0 and not toosick:
-            nx = x
-            ny = y
-            hasmoved = 0
-            if  cmd == curses.KEY_DOWN:
-                ny = min(y+1,LV_H-2)
-                hasmoved = 1
-            elif cmd == curses.KEY_UP:
-                ny = max (0,y-1)
-                hasmoved = 1
-            elif cmd == curses.KEY_LEFT:
-                nx = max (0,x-1)
-                hasmoved = 1
-            elif cmd == curses.KEY_RIGHT:
-                nx = min(x+1,LV_W-1)
-                hasmoved = 1
-            if hasmoved:
-                if iswalkable(nx,ny):
-                    x = nx
-                    y = ny
-                    turn=1  
-                
-                for e in entities: #hit entities hit enemy
-                    if( (e[0]==nx) and (e[1]==ny)):
-                        if e[2] == "Gnome" and e[4].status != GN_DONE:
-                            if (len(inventory)<MAXINV) and  (randint(0,2) + (not attributes[ATTR_STRONG_HANDS]))<1:
-                                mess("You catch a Gnome")
-                                inventory.append([0,0,OBJ_GNOME,e[5]])
-                                entities.remove(e)
-                                
-                            else:
-                                mess("The Gnome slips from your hands.")
-                        elif ( e[3] == 'S')  and curss[CURS_LOVE] > 0:
-                            mess("You are unable to hit the Succubus")
-                        else:
-                            tpow = atk
-                            for k in equip:
-                                if k[0][2] == OBJ_SWORD:
-                                    tpow = (atk * 3)//2
-                            for k in equip:
-                                if k[0][2] == OBJ_SWORD_GOLDEN:
-                                    tpow = (atk * 5)//2
-                            hite(e,tpow)
-                if lvl[nx][ny] == 3: #open doors
-                    lvl[nx][ny] = 0
-                    mess("You open the door.")
-                    floodfill(nx,ny,-1,True)
-                if lvl[nx][ny] == 4: #exit
-                    crawlin = False
-                    mess("You descend the stairs...")
-
-                if lvl[nx][ny] == 7: #vending machine
-                
-
-                    exitgiftshop=True
-                    while exitgiftshop:
-                        stdscr.clear()
-                        ppp = 1
-                        for l in vendingback:
-                            stdscr.addstr(ppp,1,l,curses.color_pair(0))
-                            ppp+=1 
-                        stdscr.addstr(1,7,"THAKNAR's - GIFT SHOP")
-
-                        lei = 1
-                        for v in vmachset:
-                            if(v[0] <= gold):
-                                j = 0
-                            else:
-                                j = 4
-    
-                            s = "ERROR"
-                            if v[1] == 0:
-                                s = "Gold plate it!"
-                            elif v[1] == 1:
-                                s = object_names(v[2])
-                            stdscr.addstr(lei + 3,6,str(lei) + ") "+ (goodstring(s)) + str(v[0])+"* ", curses.color_pair(j))
-                            lei+=1
-                        stdscr.addstr(11,3,vmachword[0])
-                        stdscr.addstr(12,3,vmachword[1])
-
-
-                        stdscr.refresh()
-                        rrrr=stdscr.getch()
-                        if rrrr in [ord('\n')]:
-                            exitgiftshop=False
-                        elif rrrr in range(ord('1'),ord('1')+len(vmachset)):
-                            ind = rrrr-ord('1')
-                            if vmachset[ind][1] == 0:
-                                stdscr.clear()
-                                stdscr.addstr(1,1,"Choose an item to gold plate")
-                                stdscr.getch()
-                            if vmachset[ind][1] == 1:
-                                if gold >= vmachset[ind][0]:
-                                    b = curses.color_pair(5)
-                                    if len(inventory)<MAXINV:
-                                        gold -= vmachset[ind][0]
-                                        inventory.append(vmachset[ind][2])
-                                        stdscr.addstr(3,4,"+----------------------+",b)
-                                        stdscr.addstr(4,4,"*    Good choice!      *",b)
-                                        stdscr.addstr(5,4,"*Thanks for stopping by*",b)
-                                        stdscr.addstr(6,4,"+----------------------+",b)
-                                    else:
-                                        stdscr.addstr(4,6,"+---------------+",b)
-                                        stdscr.addstr(5,6,"|Inventory full.|",b)
-                                        stdscr.addstr(6,6,"+---------------+",b)
-                                    stdscr.refresh()
-                                    stdscr.getch()
-                            
-                if lvl[nx][ny] == 101: #finale
-                    finale()
-                if isnonsolid(lvl[nx][ny]):
-                    floodfill(nx,ny)
-
-        #d button drop item
-        if cmd == ord('d') and (len(inventory)+len(equip))>0:
-            stdscr.addstr(7,7,"Select the item you want to drop")
-            n = 0
-            lawlz = False
-            while True:
-                for i in range(0,len(inventory)):
-                    s = object_names(inventory[i])[:INVCLIP]
-                    back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
-                for i in range(0,len(equip)):
-                    back.addstr(3+i,LW_W+4, object_names(equip[i][0])[:INVCLIP])
-
-                if n < len(equip):
-                    back.addstr(3+n,LW_W+4, object_names(equip[n][0])[:INVCLIP], curses.color_pair(9))
-                else:
-                    s = object_names(inventory[n-len(equip)])[:INVCLIP]
-                    back.addstr(7+n-len(equip),LW_W+4, s,curses.color_pair(9))
-                back.noutrefresh()
-                stdscr.refresh()
-                s = stdscr.getch()
-
-                if s == curses.KEY_DOWN:
-                    n = (n+1)%(len(inventory)+len(equip))
-                elif s == curses.KEY_UP:
-                    n = (n-1)%(len(inventory)+len(equip))
-                elif s == ord('\n'):
-                    lawlz = True
-                    break
-                else:
-                    break
-
-            it = n
-            if lawlz:
-                    
-                if it>=len(equip):
-                    pos = it - len(equip)
-                    #special droppings
-                    if inventory[pos][2] == OBJ_GNOME:
-                        mess("You let "+inventory[pos][3].name+" go")
-                        gibby = [x,y]+bosses["Gnome"] + [gnomeBrain(),inventory[pos][3]]
-                        gibby[4].status = GN_FULL
-                        entities.append(gibby)
-                        del inventory[pos]
-                    else: #ordinary droppings (special effects)
-                        sbobs=False
-                        if inventory[pos][2] == OBJ_STONE:
-                            for e in objects:
-                                if (e[2] == OBJ_PLANT) and (e[4] == 1 ) and (e[0]==x) and (e[1]==y):
-                                    sbobs = True
-                        mess("You drop the "+object_names(inventory[pos]))
-                        if lvl[x][y] == 8:
-                            mess("...it is consumed by the lava")
-                        else:
-                            objects.append([x,y]+inventory[pos][2:])
-
-                        del inventory[pos]
-
-                        if sbobs:
-                            mess("The stone breaks the Stramonium")
-                            mess("Out comes a litte seed...")
-                            objects.append([x,y,OBJ_STRAMONIUM_SEED])
-                else: 
-                    pos = it
-                    mess("You drop the "+object_names(equip[pos][0]))
-                    if lvl[x][y] == 8:
-                        mess("...it is consumed by the lava")
-                    else:
-                        objects.append([x,y]+equip[pos][0][2:])
-                        del equip[pos]
-    
-        
-        #a button pick up objects
-        if cmd == ord('a'):
-            found=[]
-            oc = objects
-            MAXAX = 10
-            ccc = 0
-            for i in range(0,len(oc)):
-                o = oc[i]
-                if ((o[0] == x) and (o[1] == y)):
-                    found.append(i)
-                    ccc+=1
-                if ccc >= MAXAX:
-                    break
-
-            if len(found)==0:
-                o = -1
-                mess("There is nothing here.")
-
-            elif len(found)==1:
-                o = oc[found[0]]
-            else:
-                z = 0
-                while True:
-                    h = 5
-                    for j in range(0,len(found)):
-                        f = found[j]
-                        if j == z:
-                            c = curses.color_pair(1)
-                        else:
-                            c = curses.color_pair(0)
-                        stdscr.addstr(h,5,object_names(oc[f]),c)
-                        h+=1
-                    stdscr.refresh()
-                    fff = stdscr.getch()
-                    if fff == curses.KEY_UP:
-                        z = (z-1)%len(found)
-                    elif fff == curses.KEY_DOWN:
-                        z = (z+1)%len(found)
-                    elif fff == ord('\n'):
-                        break
-                o = oc[found[z]]
-            
-
-            if o != -1:
-                    if o[2] == OBJ_PUKE:
-                        mess("Someone else is going to clean that.")
-                    elif o[2] == OBJ_CHESTMONSTER:
-                        mess("The object explodes in a swarm of enemies",4)
-                        w = randint(3,8)
-                        koth = []
-                        cnt = 0
-                        for p in range(0,w):
-                            px = x
-                            py = y
-                            while (not isfreepos(px,py)) and cnt < 500 and (not [px,py] in koth):
-                                cnt +=1
-                                px += randint(-1,1)
-                                py += randint(-1,1)
-                                px = max(0, min(px,LV_W-1))
-                                py = max(0, min(py,LV_H-1))
-                            koth.append([px,py])
-
-                        for j in koth:
-                            entities.append(j+list(mobs[randint(stage//3,stage//2)]))
-                        objects.remove(o)
-                    elif o[2] == OBJ_PLANT:
-                        if additem(o):
-                            mess("You pick up a "+object_names(o))
-                            if o[3] == 1:
-                                gloves=0
-                                for k in equip:
-                                    if k[0][2]==OBJ_GLOVES:
-                                        gloves=1
-                                if gloves == 0:
-                                    hitp(10,True)
-                                    mess("You got stung by the herb. -10 HP",4)
-                            objects.remove(o)
-                        else:
-                            mess("Your inventory is full",3)
-                    else:
-                        if additem(o):
-                            mess("You pick up a "+object_names(o))
-                            objects.remove(o)
-                        else:
-                            mess("Your inventory is full",3)
-        
-        #cast spell
-        if cmd == ord('c'):
-            if mana > 0:
-                wand = 0
-                for k in equip:
-                    if k[0][2]==OBJ_WAND:
-                        wand = 1
-    
-                ccc = [curses.color_pair(n) for n in [6,9,11,1]]
-                cck = [curses.color_pair(n) for n in [8,4,3,0]]
-                l = 0
-                c = 0
-                doit = False
-                
-                patch = [ [j,i, mypad.inch(j,i) ] for i in range(max(0,x-10),min(LV_W,x+10)) for j in range(max(0,y-10),min(LV_H,y+10))]
-                while not doit:
-                    for gag in patch:
-                        addchsafe(gag[0],gag[1],gag[2],curses.color_pair(0))
-                    if l!=3:
-                        
-                        rw = spellrange(spellbook[l][c][1])
-                        if rw > -1: 
-                            y0 = max(0,y-rw)
-                            y1 = min(LV_H-1,y+rw)
-                            x0 = max(0,x-rw)
-                            x1 = min(LV_W-1,x+rw)
-
-                            jobs = [ [j,i] for j in [y0,y,y1] for i in [x0,x,x1] ]
-                            for jib in jobs:
-                                if jib != [y,x]:
-                                    addchsafe(jib[0],jib[1],'*',cck[l])
-
-                    mypad.noutrefresh(camy,camx,1,1,LW_H+1,LW_W+1)
-                        
-                    for p in range(0,10):
-                        stdscr.addstr(2+p,LW_W+4,' '*13,0)
-                    t = 0
-                    for i in range(0,4):
-                        if l==i:
-                            stdscr.addstr(2,LW_W+4+t,classnames[i].ljust(10),ccc[i])
-                            if l!=3:
-                            
-                                for i in range(0,min(spellsprog[l],len(spellbook[l]))):
-                                    if c == i:
-                                        sbcol = curses.color_pair(13)
-                                    else:
-                                        sbcol = cck[l]
-                                    stdscr.addstr(3+i,LW_W+4+t,(str(spellbook[l][i][0])+" "+spellbook[l][i][2]).ljust(10),sbcol)
-                            t+=10
-                        else:
-                            stdscr.addch(2,LW_W+4+t,'*',ccc[i]) 
-                            t+=1
-                    
-                    stdscr.refresh()
-                    lek=stdscr.getch()
-                    if lek == curses.KEY_RIGHT:
-                        l = (l+1)%4
-                        c = 0
-                    if lek == curses.KEY_LEFT:
-                        l = (l-1)%4
-                        c = 0                   
-                    if lek == curses.KEY_UP and l!=3:
-                        c = (c-1)%min(spellsprog[l],len(spellbook[l]))
-                    if lek == curses.KEY_DOWN and l!=3:
-                        c = (c+1)%min(spellsprog[l],len(spellbook[l]))
-
-                    if lek == ord('\n'):
-                        doit = True
-
-                if (l != 3) and (spellsprog[l]>0):
-                    if mana >= spellbook[l][c][0]:
-                        spellcast(spellbook[l][c][1])
-                        mana -= spellbook[l][c][0]
-                    else:
-                        mess("You don't have the mana for that.",3)
-
-
-                
-                        
-            else:
-                mess("You don't have any mana to perform magic with",3)
-    
-        # use object (0-9)
-        lawlz = False
-#       if cmd  in range(ord('0'),ord('9')+1):
-#           lawlz = True    
-#           touse = cmd-ord('0')
-        if cmd == ord('u') and len(inventory)>0:
-            n = 0
-            while True:
-                for i in range(0,len(inventory)):
-                    s = object_names(inventory[i])[:INVCLIP]
-                    back.addstr(7+i,LW_W+4, s,curses.color_pair(ssheet[inventory[i][2]][1]))
-                s = object_names(inventory[n])[:INVCLIP]
-                back.addstr(7+n,LW_W+4, s,curses.color_pair(6))
-                back.noutrefresh()
-                stdscr.refresh()
-                s = stdscr.getch()
-
-                if s == curses.KEY_DOWN:
-                    n = (n+1)%len(inventory)
-                elif s == curses.KEY_UP:
-                    n = (n-1)%len(inventory)
-                elif s == ord('\n'):
-                    lawlz = True
-                    touse = n
-                    break
-                else:
-                    break
-    
-        if lawlz:
-            if touse in range(0,len(inventory)):
-                idd = inventory[touse][2]
-                if idd == OBJ_LETTER:
-                    data = [
-",---------------------------------------------.",
-"(G|                                           |"] + [
-"  |                                           |"]*20 + [
-"  | .-------------------------------------------.",
-"  l  )                                          )",
-"   '=-------------------------------------------'"]
-
-                    data2 = [
-    "Dear {0},".format(name),
-    "   It has been noted you are a valuable  ",
-    "warrior. We thought it would be extremely",
-    "nice if you descended through the dark   ",
-    "rooms of the deep dungeon of {0}".format(dungeonname),
-    "where the dark mage Oskar, escaped from  ",
-    "the Royal Prisons, is hiding, and murder ",
-    "him. The reward will be conspicuous.     ",
-    "",
-    "                        His Majesty      "
-                    ]
-
-                    yyy=2
-                    for l in data:
-                        stdscr.addstr(yyy,2,l)
-                        yyy+=1
-                    yyy=4
-                    for l in data2:
-                        stdscr.addstr(yyy,6,l)
-                        yyy+=2  
-                    stdscr.refresh()
-                    stdscr.getch()
-                elif idd == OBJ_PAPER:
-                    data = clues[inventory[touse][3]]                   
-                    yyy=2
-                    for l in data:
-                        stdscr.addstr(yyy,2,l)
-                        yyy+=1
-       
-                    stdscr.refresh() 
-                    stdscr.getch()
-                    
-                elif idd == OBJ_BREAD:
-                    mess("You eat the bread. +25 HP",2)
-                    hp = min(mxhp,hp+25)
-                    del inventory[touse]
-                elif idd == OBJ_GOULASH:
-                    mess("You eat the goulash. +50 HP",2)
-                    hp = min(mxhp,hp+50)
-                    del inventory[touse]
-                elif idd == OBJ_PASTA:
-                    mess("You eat the pasta. +100 HP",2)
-                    hp = min(mxhp,hp+100)
-                    del inventory[touse]
-                elif idd == OBJ_CARCASS:
-                    if randint(0,1)==0:
-                        s=inventory[touse][3]*2 + randint(0,2)
-                        mess("You eat the carcass (+"+str(s)+" HP)",2)
-                        hp = min(mxhp,hp+s)
-                    else:
-                        mess("The meat makes you horribly sick",3)
-                        curss[CURS_POISON] += 60 + randint(0,30)
-                    del inventory[touse]
-                elif idd == OBJ_FAIRY_LIVER:
-                    b = randint(40,80)
-                    mess("You eat the liver. +"+str(b)+" MANA")
-                    mana += b
-                    del inventory[touse]
-                elif idd == OBJ_GNOME:
-                    l = inventory[touse][3].loot 
-                    if l == -1:
-                        mess("The gnome is not carrying anything")
-                    elif l[2] == OBJ_GOLD:
-                        mess("You get back your money")
-                        gold += l[3]
-                    else:
-                        mess("You shake the gnome and your "+object_names(l) +" comes out.")
-                        objects.append([x,y] + l[2:])
-
-                    inventory[touse][3].loot = -1
-
-                elif idd == OBJ_PLANT:
-                    species = inventory[touse][4]
-                    adj = inventory[touse][3]
-                    bonus = 1
-                    if adj == 5:
-                        bonus = 4
-                    elif adj == 4:
-                        bonus = 2
-                    elif adj == 1:
-                        mess("You get stung by the herb (-10 HP)")
-                        hitp(10,True)
-                    elif adj == 2:
-                        mess("This plant is sacred to the gods. +2 MANA")
-                        mana=min(mana+2,MAXMANA)
-                    elif adj == 3:
-                        if curss[CURS_ICE] > 0:
-                            mess("The plant unfreezes you")
-                        curss[CURS_ICE] = 0
-                    
-                    if(species == 0):
-                        hp = min(mxhp,hp+40*bonus)
-                        mess("The herb makes you healthier. (+"+str(40*bonus)+" HP)")
-                    elif species == 1:
-                        hitp(70*bonus,True)
-                        curss[CURS_POISON] = 150
-                        mess("You eat the herb and feel very, very ill...",4)
-                    elif species == 2:
-                        mana=min(mana+2*bonus,MAXMANA)
-                        mess("You eat the Sage. (MANA +"+str(2*bonus)+")")
-                    elif species == 3:
-                        if randint(0,4)<3:
-                            atk+=bonus
-                            mess("The herb makes you stronger. (ATK +"+str(bonus)+")")
-                        else:
-                            mess("You eat the herb, but nothing happens.")
-                    elif species == 4:
-                        if randint(0,2)==0:
-                            dfn+=bonus
-                            mess("You feel more resistant. (DEF +"+str(bonus)+")")
-                        else:
-                            mess("You eat the herb, but nothing happens.")
-                    else:
-                        mess("You eat the herb, but nothing happens.")
-                        
-                    del inventory[touse]
-
-                elif idd == OBJ_BOOK_BOTANY:
-                    count = 0
-                    for p in inventory:
-                        if p[2] == OBJ_PLANT:
-                            if p[5] == 0:
-                                count += 1
-                            p[5] = 1
-                    mess(str(count)+" plants were identified.")
-                    del inventory[touse]
-                elif idd == OBJ_BOOK_TELEPORTATION:
-                    spellcast(SPELL_TELEPORT)
-                    del inventory[touse]
-                elif idd == OBJ_BOOK_FIRE:
-                    spellcast(SPELL_FIRE)
-                    del inventory[touse]
-                elif idd == OBJ_BOOK_THUNDER:
-                                        spellcast(SPELL_THUNDER)
-                                        del inventory[touse]
-
-                elif idd == OBJ_BOOK_GEOGRAPHY:
-                    exx=-1
-                    exy=-1
-                    for i in range(0,LV_W):
-                        for j in range(0,LV_H):
-                            if lvl[i][j] == 4:
-                                exx=i
-                                exy=j
-                    if (exx>=0) and (exy>=0):
-                        nonon=""
-                        if (exx-x>0):
-                            nonon+= str(exx-x)+"E " 
-                        elif exx-x<0:
-                            nonon+= str(x-exx)+"W "
-
-                        if (exy-y>0):
-                            nonon+=str(exy-y)+"S"
-                        elif (exy-y<0):
-                            nonon+=str(y-exy)+"N"
-                        
-                        mess("Exit is "+nonon+" from you.")
-                    else:
-                        mess("There is no exit...")
-                    del inventory[touse]
-
-                elif idd == OBJ_BOOK_TRANSMIGRATION:
-                    spellcast(SPELL_TRANSMIGRATION)
-                    del inventory[touse]                        
-
-
-
-                elif idd == OBJ_HANDBOOK:
-                
-                    jobby=False
-                    c = 0
-                    while not jobby:
-                        stdscr.addstr(0,2,"CHOOSE CATEGORY",curses.color_pair(10))
-                        for i in range(0,3):
-                            if c == i:
-                                cil = curses.color_pair(11)
-                            else:
-                                cil = curses.color_pair(0)
-                            if spellsprog[i]>=len(spellbook[i]):
-                                gigga = " no more spells."
-                            else:
-                                gigga = " " + spellbook[i][spellsprog[i]][2]
-                            stdscr.addstr(3+i,3,classnames[i] + gigga,cil)
-                        stdscr.refresh()
-                        q = stdscr.getch()
-                        if q == curses.KEY_DOWN:
-                            c = (c+1)%3
-                        if q == curses.KEY_UP:
-                            c = (c-1)%3
-                        if q == ord('\n'):
-                            jobby = True
-                    spellsprog[c] += 1
-                    mess("You learn a new spell.")
-
-                    del inventory[touse]
-         
-
-                elif idd in range(200,300):
-                    if len(equip) < 3:
-                        mess("You equip the "+object_names(inventory[touse]))
-                        equip.append([inventory[touse],100])
-                        del inventory[touse]
-                    else:
-                        mess("You can't equip any more items")
-
-                else:
-                    mess("You cannot use that.")
-            else:
-                mess("That slot is empty")
-
-        #i button (stats screen)
-        if cmd == ord('i'):
-            stdscr.clear()
-
-            for i in range(1,50):
-                stdscr.addch(2,i,".")
-
-            
-            sss = ", water will enter dungeon in "+str(abs(waterlvl-WATSTEPS)) + " turns."          
-            if waterfrozen:
-                sss = ", water is frozen."
-            sad = ""
-
-            if (waterlvl//WATSTEPS)>0:
-                sad = " (next in "+str(WATSTEPS - waterlvl%WATSTEPS) + " turns.)"
-                sss = ", water at floor "+str(waterlvl//WATSTEPS) + sad
-                if waterfrozen:
-                    sss = ", water is frozen."
-                for i in range(1,waterlvl//WATSTEPS+1):
-                    if waterfrozen:
-                        stdscr.addch(2,i,"/",curses.color_pair(15))
-                    else:
-                        stdscr.addch(2,i,"~",curses.color_pair(6))
-
-
-            stdscr.addstr(1,1,"Floor: "+str(stage).zfill(2) + "/50"+sss)
-            if (waterlvl//WATSTEPS>=stage):  
-                stdscr.addch(2,stage,"@",curses.color_pair(6))
-            else:
-                stdscr.addch(2,stage,"@")
-
-            lc = curses.color_pair(2) #5
-
-            stdscr.addstr(4,1," "*30,lc)
-            stdscr.addstr(4,1,"EMERALDS",lc)
-            for i in range(0,7):
-                for j in range(0,7):
-                    if gems[j*7+i]:
-                        stdscr.addch(6+j,2+i,'*',curses.color_pair(2))
-                    else:
-                        stdscr.addch(6+j,2+i,'.')
-
-            stdscr.addstr(4,15,"EXP "+str(exp)+"/"+str(exprofile(rank)), curses.color_pair(3))
-            stdscr.addstr(6,14,"(          )")
-            n = exp*10//exprofile(rank)  
-            stdscr.addstr(6,15," "*n,curses.color_pair(6))
-
-            stdscr.addstr(10,15,"SPELLBOOK")
-            for i in range(0,3):
-                for j in range(0,len(spellbook[i])):
-                    if j < min(spellsprog[i],len(spellbook[i])):
-                        ccceee = curses.color_pair(0)
-                    else:
-                        ccceee = curses.color_pair(4)
-                    stdscr.addstr(12+j,15 + 4*i, spellbook[i][j][2][:3].upper(),ccceee)
-    
-            '''stdscr.addstr(4,30, "ORIENTATION")
-    
-            sttx = 31
-            stty = 10
-            for i in range(0,5):
-                for j in range(0,5):
-                    if(i+j<=4):
-                        c=(' ',C_WHITE)
-                        if (i==0) and (j==0):
-                            c=(' ',C_WHITERED)
-                        if (i==4) and (j==0):
-                            c=(' ',C_WHITEYELLOW)
-                        if (i==0) and (j==4):
-                            c=(' ',C_WHITEBLUE)
-                        if (i+j == 1):
-                            c=('%',C_WHITERED)
-                        if (i==3):
-                            c=('%',C_WHITEYELLOW)
-                        if (j==3):
-                            c=('%',C_WHITEBLUE)
-                        if ([i,j]==orientation):
-                            c = ('@',curses.color_pair(0))'''
-
-
-                            
-            stdscr.addstr(4,31,"CURSES",curses.color_pair(4))
-            if sum(curss) == 0:
-                stdscr.addstr(6,31,"You are fine.")
-            else:
-                t = 0
-                for c in range(0,len(curss)):
-                    if curss[c] > 0:
-                        stdscr.addstr(6+t,31,curses_names[c]+" ("+str(curss[c])+")")
-                        t+=1
-            
-
-
-            stdscr.addstr(18,1,"ATTRIBUTES")
-            u = 0
-            for j in range(0,len(attributes)):
-                if attributes[j]:
-                    stdscr.addstr(20+u,1,attribute_strings[j][0])
-                    u+=1
-
-            stdscr.refresh()
-            stdscr.getch()
-
-        #suicide
-        if cmd == ord('p'):
-            stdscr.addstr(7,7,"Are you sure you want to kill yourself? (Y/N)")
-            stdscr.refresh()
-            sure = stdscr.getch()
-            if (sure in [ord('y'),ord('Y')]):
-                mess("You commit suicide.")
-                crawlin=False
-                alive=False
-
-        #toggle dots toggle visibility toggle fov toggle
-        if cmd == ord('v'):
-            visibility_dots = not visibility_dots
-
-        #DEBUG COMMANDS 
-        #next level
-        #mana cheat
-        if DEBUG:
-            if cmd == ord('n'):
-                crawlin=False
-            if cmd == ord('m'):
-                gold=999
-                mana=999
-                givexp(500)
-            if cmd == ord('b'):
-                for i in range(0,len(gems)):
-                    gems[i] = True
-            if cmd == ord('l'):
-                stage=34
-                crawlin=False
+        draw()
+
+        #1 PLAYER TURN
+        cango=False
+        while not cango:
+            cmd = getchar()
+            cango = dopturn(cmd)
+            draw()
 
         #move wotah
         if not waterfrozen:
@@ -3185,26 +3342,26 @@ while alive:
     
     
 stdscr.clear()
-stdscr.refresh()
+flush_main()
 if specialending <=1:
     if DEBUG:
-        stdscr.addstr(3,5,"This game was in DEBUG MODE",curses.color_pair(10))
-    stdscr.addstr(2,15,"You are dead.")
-    stdscr.addstr(5,5,"Last messages:")
+        addstr_main(3,5,"This game was in DEBUG MODE",curses.color_pair(10))
+    addstr_main(2,15,"You are dead.")
+    addstr_main(5,5,"Last messages:")
     ppp=7
     for m in reversed(messages):
-        stdscr.addstr(ppp,8,m[0])
+        addstr_main(ppp,8,m[0])
         ppp+=1
 
-    stdscr.addstr(13,5,"You made it to floor "+str(stage)+" with "+str(sum(gems))+" emeralds.")
+    addstr_main(13,5,"You made it to floor "+str(stage)+" with "+str(sum(gems))+" emeralds.")
 
 if specialending == 2:
-    stdscr.addstr(7,16,"You live.")
+    addstr_main(7,16,"You live.")
 
 
 c = 0
-while not (c in [ord('\n'),ord(' ')]):
-    c = stdscr.getch()
+while not (c in [KEYENTER,ord(' ')]):
+    c = getchar()
 
 #END
 curses.nocbreak()
@@ -3258,20 +3415,20 @@ else:
 
 
 '''             leng=min(5+2*wand,mana)
-                stdscr.addstr(7,7,"+-CAST SPELL-+")
-                stdscr.addstr(8,7,"*" + (12-leng)/2*" " +leng*"_"  + (13-leng)/2*" "+"*")
-                stdscr.addstr(9,7,"+------------+")
-                stdscr.refresh()
+                addstr_main(7,7,"+-CAST SPELL-+")
+                addstr_main(8,7,"*" + (12-leng)/2*" " +leng*"_"  + (13-leng)/2*" "+"*")
+                addstr_main(9,7,"+------------+")
+                flush_main()
                 c = 0
                 s = ""
                 while c!= ord('\n') and len(s)<leng:
-                    c=stdscr.getch()
+                    c=getchar()
                     if c>250:
                         c=0
                     if chr(c) in ['q','w','e','r']:
                         s+=chr(c)
-                        stdscr.addstr(8,8+ (12-leng)/2,s)
-                        stdscr.refresh()
+                        addstr_main(8,8+ (12-leng)/2,s)
+                        flush_main()
 
                 mana= max(0,mana - len(s))
                 mess("You cast the spell '"+s+"' (-"+str(len(s))+" MANA)")

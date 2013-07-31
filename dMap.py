@@ -444,7 +444,6 @@ class dMap:
    def drawranline(self,x1,y1,x2,y2):
 
         if x1<0 or x1>=len(self.caveArr) or x2<0 or x2>=len(self.caveArr):
-            print("not drawing line outside limits. "+str(x1)+","+str(y1))
             return
         sx = (x1>x2)*2 - 1        
         sy = (y1>y2)*2 - 1
@@ -622,7 +621,6 @@ class dMap:
 
     mst = Kruskal(nodes,edges)
 
-    print mst
 
     for e in mst:
         self.drawranline(e[0][0],e[0][1],e[1][0],e[1][1])

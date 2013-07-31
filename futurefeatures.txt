@@ -1,0 +1,8 @@
+* talking to gnomes
+* gnomes karma (well treated: will not steal, give presents)
+* gnome meat (very nutritive)
+* female gnomes in gnome village
+* fill last level with mobs
+* abstractization of actions
+* smarter turn system
+* wrapper for exceptions (no more scrambled terminal windows!)
