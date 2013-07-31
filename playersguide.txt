@@ -63,7 +63,7 @@ PYTHON HOLE.XXX		(XXX is the version number)
 
 
 
----ASCII/UNICODE---
+---ASCII/UNICODE/GRAPHIC--- (IGNORE IF NOT IN DEBUG MODE)
 
 Hole was originally written using the ASCII charset. This is a very limited but universally supported set of symbols. Since version 1.0.6, a Unicode mode is included, which extend greatly the set of available glyphs and thus provides more interesting graphics. However, it comes with a cost: Hole has to be run with Python3.3, and the terminal emulator and his font must support unicode. If you want to give it a try, you can select UNICODE at the beginning of the game execution. If this menu popping up every damn time annoys you, bypass it by appending the options --ascii or --unicode when running hole on the command line.
 
@@ -95,7 +95,7 @@ Strong Hands    reduce probability of being stripped of items when attacked; inc
 ---BASICS---
 
 @ - Player
-#,$ - Walls
+#,$,% - Walls
 v - Exit
 
 Find the exit to go to the next floor. Go fast or you'll drown in the water.
@@ -129,6 +129,8 @@ After a certain number of turns (check the I panel) water will enter the dungeon
 
 ---COMMANDS---
 
+You can display a panel with all available commands by typing '?'.
+
 Remember to deactivate CAPS LOCK.
 
 ARROW KEYS - Move / Attack
@@ -140,7 +142,6 @@ P - Commit suicide
 I - Check game progress, found emeralds, experience points, curse status...
 V - Toggle FOV dots
 
-Whatever the command you give, existing or not, successful or not, you lose your turn
 
 
 

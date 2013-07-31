@@ -179,7 +179,7 @@ def addch_main(y,x,char,col=0):
 #        libtcod.console_set_default_background(0, graphcolors[col][1])
         libtcod.console_put_char(0,x,y,char, libtcod.BKGND_SET)
     else:
-        stdscr.addch(y,x,char,curses.color_pair(col))
+        stdscr.addch(y,x,char,col)
 
 def addstr_main(y,x,string,col=0):
     if GRAPHIC:
@@ -924,7 +924,7 @@ ATTR_PIOUS = 3
 
 attribute_strings = {
     ATTR_HAWK_EYE:("Hawk Eye","Extends the field of vision."),
-    ATTR_STRONG_HANDS:("Strong Hands","Lowers probability of losing items in battle."),
+    ATTR_STRONG_HANDS:("Strong Hands","Lowers probability of losing items in battle, increases probability of catching gnomes"),
     ATTR_DRAGONBORN:("Dragonborn","Half damage with lava"),
     ATTR_PIOUS:("Pious","Mana drops always yield +2")
     }
@@ -981,8 +981,8 @@ exp=0
 waterfrozen=False
 curss = [0]*(MAXCURS+1)
 spellsprog = [1,0,0] 
-#if DEBUG:
-#   curss = [10,0,10]
+if DEBUG:
+   curss = [10,0,0]
 orientation = choice([ [1,2] , [2,1] , [1,1] ])
 ID = randint(0,999999999)
 
@@ -1054,6 +1054,22 @@ dialogue2 = [
 (2,"You cast a Teleportation Spell.")
 ]
 
+#help panel
+helppanel = [
+"                                                                   ",
+" ?             open this panel                                     ",
+" ARROW KEYS    movement/attack                                     ",
+" u             use object from inventory (eat, equip, etc...)      ",
+" d             drop object from inventory/equipment                ",
+" i             info panel                                          ",
+" c             cast spell                                          ",
+" a             pick up item (right where you are)                  ",
+" s             skip turn                                           ",
+" v             toggle FOV dots (the annoying blue m*********ers)   ",
+" p             commit suicide (yes, you'll need this.)             ",
+"                                                                   "
+
+]
 
 
 #clues
@@ -1877,6 +1893,14 @@ def dopturn(cmd):
             mess("You feel sick and can't move",2)
             return True
 
+        if curss[CURS_ICE] > 0:
+            if cmd in [KEYUP,KEYDOWN,KEYLEFT,KEYRIGHT]:
+                if randint(0,1):
+                    mess("Way too cold. Not doing that.")
+                else:
+                    mess("You're frozen, so there's that.")
+                return False
+
         if curss[CURS_ICE] <= 0 and not toosick:
             nx = x
             ny = y
@@ -2359,7 +2383,7 @@ def dopturn(cmd):
                 elif idd == OBJ_FAIRY_LIVER:
                     b = randint(40,80)
                     mess("You eat the liver. +"+str(b)+" MANA")
-                    mana += b
+                    mana = min(mana+b,MAXMANA)
                     del inventory[touse]
                 elif idd == OBJ_GNOME:
                     l = inventory[touse][3].loot 
@@ -2619,6 +2643,20 @@ def dopturn(cmd):
             flush_main()
             getchar()
             return False
+
+        #? button
+        if cmd == ord('?'):
+            stdscr.clear()
+            for i in range(0,len(helppanel)):
+                addstr_main(i,0,helppanel[i])
+            flush_main()
+            getchar()
+            return False   
+
+        #skip turn s button
+        if cmd == ord('s'):
+            mess("You skip a turn.")
+            return True
 
         #suicide
         if cmd == ord('p'):
