@@ -1,3 +1,4 @@
+THINGS I WILL IMPLEMENT:
 * talking to gnomes
 * gnomes karma (well treated: will not steal, give presents)
 * gnome meat (very nutritive)
@@ -5,7 +6,6 @@
 * fill last level with mobs
 * wrapper for exceptions (no more scrambled terminal windows!)
 * explore/examine command
-* help (keybindings) panel
 * smart fairies
 * bows and arrows
 * abilities (sword, bow, magic)
@@ -13,13 +13,17 @@
 * alchemy/metals/potions system
 * show exit position if already seen
 
+
+THINGS FORMERLY IN THE LIST ABOVE
 * abstractization of actions DONE!
 * smarter turn system ALMOST!
 * sort command DONE!
-
+* help (keybindings) panel DONE!
 
 
 GRAPHICAL/STANDALONE MODE:
 * held key functionality
 * flicker bug when dropping
 * why is canvas so small?
+* no getstring functionality (= no custom player name!)
+* A DREAM: graphical tiles?
