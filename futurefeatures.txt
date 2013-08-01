@@ -8,9 +8,18 @@
 * help (keybindings) panel
 * smart fairies
 * bows and arrows
-* sort command
 * abilities (sword, bow, magic)
 * race (even mixed)
+* alchemy/metals/potions system
+* show exit position if already seen
 
 * abstractization of actions DONE!
 * smarter turn system ALMOST!
+* sort command DONE!
+
+
+
+GRAPHICAL/STANDALONE MODE:
+* held key functionality
+* flicker bug when dropping
+* why is canvas so small?

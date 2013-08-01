@@ -1107,6 +1107,8 @@ helppanel = [
 " s             skip turn                                           ",
 " v             toggle FOV dots (the annoying blue m*********ers)   ",
 " p             commit suicide (yes, you'll need this.)             ",
+" q             see messages history (arrow keys to navigate)       ",
+" z             sort inventory alphabetically                       ",
 "                                                                   "
 
 ]
@@ -1370,7 +1372,7 @@ def cansee(xa,ya,xb,yb):
 
 messages=[("the adventure begins",0)]
 def mess(strin,col=0):
-    if len(messages)>=5:
+    if False: #len(messages)>=5:
         messages.pop(0)
     messages.append([strin,col])
 
@@ -1880,7 +1882,7 @@ def draw():
         if gems[stage-1]:
             back.addstr(LW_H+3,21, "EF!", color_pair(2))
         ct=0
-        for m in reverse(messages):
+        for m in reverse(messages[-5:]):
             lecol=color_pair(m[1])
             back.addstr(LW_H+6+ct,1, m[0], lecol)
             ct+=1
@@ -2110,6 +2112,7 @@ def dopturn(cmd):
                     s = object_names(inventory[n-len(equip)])[:INVCLIP]
                     back.addstr(7+n-len(equip),LW_W+4, s,color_pair(9))
                 blitback()
+                blitlvl()
                 flush_main()
                 s = getchar()
 
@@ -2604,7 +2607,38 @@ def dopturn(cmd):
                 mess("That slot is empty")
             return turn
 
-        #i button (stats screen)
+        #z button sort inventory
+        if cmd == ord('z'):
+            mess("You sort your inventory")
+            inventory.sort(key = lambda object: object_names(object).lower() )
+            return False
+
+        #q button see history
+        if cmd == ord('q'):
+            p = len(messages)-24
+            while True:
+                stdscr.clear()
+                yy = 1
+                for m in messages[max(0,p) : min(len(messages),p+24) ] :
+                    stdscr.addstr(yy,1,m[0],color_pair(m[1]))
+                    yy+=1
+                flush_main()
+                qeqr = getchar()
+                if qeqr in [KEYDOWN,ord('j')]:
+                    p = min(len(messages)-24,p+1)
+                if qeqr in [KEYUP,ord('k')]:
+                    p = max(0,(p-1))
+                if qeqr in [KEYLEFT,ord('h')]:
+                    p = max(0,(p-10))
+                if qeqr in [KEYRIGHT,ord('l')]:
+                    p = min(len(messages)-24,p+10)
+                if qeqr in [KEYENTER,ord('q')]:
+                    break    
+            return False
+                
+            
+
+        #i button (stats screen) i panel
         if cmd == ord('i'):
             stdscr.clear()
 
@@ -2976,7 +3010,11 @@ while alive:
                 objects.append([gx,gy,OBJ_PASTA])
     
         #add plants
-        for c in range(0,randint(1,4)):
+        if stage < 25:
+            totpla = 4
+        else:
+            totpla = 1
+        for c in range(0,randint(1,totpla)):
             gx = 0
             gy = 0
             while not isfree(lvl[gx][gy]):
@@ -3170,7 +3208,7 @@ while alive:
                 if s == GN_EMPTY:
                     if abs(e[0]-x)<=1 and abs(e[1]-y)<=1:
                         if gold > 0:
-                            bott = min(5,gold)
+                            bott = min(randint(1,3),gold)
                             gold -= bott
                             mess("A gnome strips you of your gold!",3)
                             e[5].loot = [0,0,OBJ_GOLD,bott]
@@ -3451,7 +3489,7 @@ if specialending <=1:
     stdscr.addstr(2,15,"You are dead.")
     stdscr.addstr(5,5,"Last messages:")
     ppp=7
-    for m in reversed(messages):
+    for m in reversed(messages[-5:]):
         stdscr.addstr(ppp,8,m[0])
         ppp+=1
 
