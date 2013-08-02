@@ -10,6 +10,7 @@ THINGS I WILL IMPLEMENT:
 * bows and arrows
 * abilities (sword, bow, magic)
 * race (even mixed)
+* skill system
 * alchemy/metals/potions system
 * show exit position if already seen
 

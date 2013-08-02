@@ -76,31 +76,39 @@ def get_line(x1, y1, x2, y2):
     return points
 
 
-import curses
 from random import randint
-from dMap import *
+
+try:
+    from dMap import *
+except ImportError:
+    print("could not find the crucial file dMap.py. Are you running from *inside* the hole directory?")
 
 
+try:
+    import curses
+    havecurses = True
+except ImportError:
+    print("curses library not found. Starting in standalone mode...")
+    havecurses = False
 
-stdscr = curses.initscr()
-curses.start_color()
-curses.use_default_colors()
-curses.noecho()
-curses.cbreak()
-stdscr.keypad(1)
-curses.curs_set(0)
+if havecurses:
+    stdscr = curses.initscr()
+    curses.start_color()
+    curses.use_default_colors()
+    curses.noecho()
+    curses.cbreak()
+    stdscr.keypad(1)
+    curses.curs_set(0)
 
-
-
-
-(WY,WX) = stdscr.getmaxyx()
-
-while WX<67 or WY<26:
     (WY,WX) = stdscr.getmaxyx()
 
-    stdscr.addstr(0,0,"SCREEN SIZE INSUFFICIENT. PLEASE RESIZE.")
-    flush_main()
+    while WX<67 or WY<26:
+        (WY,WX) = stdscr.getmaxyx()
 
+        stdscr.addstr(0,0,"SCREEN SIZE INSUFFICIENT. PLEASE RESIZE.")
+        flush_main()
+else:
+    MODE = 2
 
 if MODE == -1:
     stdscr.clear()
@@ -141,15 +149,20 @@ if UNICODE:
     import locale
     locale.setlocale(locale.LC_ALL,"")
 
-#starting libtcod for graphic mode
+#starting graphics.py (pygame) for graphic mode
 if GRAPHIC:
-    curses.nocbreak()
-    stdscr.keypad(0)
-    curses.echo()
-    curses.endwin()
+    if havecurses:
+        curses.nocbreak()
+        stdscr.keypad(0)
+        curses.echo()
+        curses.endwin()
 
-    import graphics
-    term = graphics.Terminal(67,26,"terminal16x16_gs_ro.png")
+    try:
+        import graphics
+    except ImportError:
+        print("Unable to import graphics.py. Are you running from the hole directory?")
+        exit()
+    term = graphics.Terminal(67,26,"Pastiche_16x16.png")
 
     stdscr = term.stdscr
 
@@ -1748,7 +1761,8 @@ while menu:
             getchar()
         elif n==3:
             curses.nocbreak()
-            stdscr.keypad(0)
+            if MODE != 2:
+                stdscr.keypad(0)
             curses.echo()
             curses.endwin()
             exit()
@@ -1937,7 +1951,7 @@ def draw():
 
 def dopturn(cmd):
 
-        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin
+        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots
 
         turn = False
 
@@ -2488,8 +2502,8 @@ def dopturn(cmd):
                         hp = min(mxhp,hp+40*bonus)
                         mess("The herb makes you healthier. (+"+str(40*bonus)+" HP)")
                     elif species == 1:
-                        hitp(70*bonus,True)
-                        curss[CURS_POISON] = 150
+                        hitp(30*bonus,True)
+                        curss[CURS_POISON] = 100*bonus
                         mess("You eat the herb and feel very, very ill...",4)
                     elif species == 2:
                         mana=min(mana+2*bonus,MAXMANA)

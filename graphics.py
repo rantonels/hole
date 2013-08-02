@@ -1,6 +1,11 @@
-import pygame as pg
-
 import sys
+
+try:
+    import pygame as pg
+except ImportError:
+    print("Pygame was not found. The pygame module is needed for Graphical/Standalone mode (the only mode possible on Windows.) Install it.")
+    sys.exit()
+
 
 KUP = 273
 KDOWN = 274
@@ -20,11 +25,31 @@ def colorize(img,fore,back):
 
    return bsu
 
-C_WHITE = (254,254,254)
-C_RED = (254,0,0)
-C_GREEN = (0,253,0)
-C_BLUE = (0,0,253)
-C_YELLOW = (253,253,0)
+_NUMERALS = '0123456789abcdefABCDEF'
+_HEXDEC = {v: int(v, 16) for v in (x+y for x in _NUMERALS for y in _NUMERALS)}
+LOWERCASE, UPPERCASE = 'x', 'X'
+
+def rgb(triplet):
+    return (_HEXDEC[triplet[0:2]], _HEXDEC[triplet[2:4]], _HEXDEC[triplet[4:6]])
+
+def triplet(rgb, lettercase=LOWERCASE):
+    return format((rgb[0]<<16 | rgb[1]<<8 | rgb[2]), '06'+lettercase)
+
+'''rxvt*color0: #2B2B2B
+urxvt*color1: #870000
+urxvt*color2: #5F875F
+urxvt*color3: #875F00
+urxvt*color4: #005FAF
+urxvt*color5: #5F5F87
+urxvt*color6: #008787
+urxvt*color7: #818181'''
+
+
+C_WHITE = rgb('eeeecc')
+C_RED = rgb('bb0000')
+C_GREEN = rgb('00bb10')
+C_BLUE = rgb('005faf')
+C_YELLOW = rgb('ddbb00')
 C_CYAN = (0,253,253)
 C_MAGENTA = (253,0,253)
 C_BLACK = (3,3,3)
