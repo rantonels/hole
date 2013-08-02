@@ -139,7 +139,7 @@ After a certain number of turns (check the I panel) water will enter the dungeon
 
 ---COMMANDS---
 
-You can display a panel with all available commands by typing '?'.
+You can display a panel with all available commands by typing '?', or 'o'.
 
 Remember to deactivate CAPS LOCK.
 

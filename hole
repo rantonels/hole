@@ -1111,7 +1111,7 @@ dialogue2 = [
 #help panel
 helppanel = [
 "                                                                   ",
-" ?             open this panel                                     ",
+" ? or o        open this panel                                     ",
 " ARROW KEYS    movement/attack                                     ",
 " u             use object from inventory (eat, equip, etc...)      ",
 " d             drop object from inventory/equipment                ",
@@ -2757,8 +2757,8 @@ def dopturn(cmd):
             getchar()
             return False
 
-        #? button
-        if cmd == ord('?'):
+        #? button o button
+        if cmd in [ord('?'),ord('o')]:
             stdscr.clear()
             for i in range(0,len(helppanel)):
                 stdscr.addstr(i,0,helppanel[i])

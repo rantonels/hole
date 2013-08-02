@@ -24,7 +24,7 @@ THINGS FORMERLY IN THE LIST ABOVE
 
 GRAPHICAL/STANDALONE MODE:
 * held key functionality
-* flicker bug when dropping
-* why is canvas so small?
+* bug: ? key does not work at all
+* bug: why is canvas so small?
 * no getstring functionality (= no custom player name!)
 * A DREAM: graphical tiles?
