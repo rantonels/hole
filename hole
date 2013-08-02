@@ -985,25 +985,26 @@ attribute_strings = {
 def exprofile(r):
     return int(r*4.9 + r*r*4.9//16)
 
-curses.init_pair(0, curses.COLOR_WHITE,     curses.COLOR_BLACK)
-curses.init_pair(1, curses.COLOR_BLACK,     curses.COLOR_WHITE)     #1 black on white
-curses.init_pair(2, curses.COLOR_GREEN,     curses.COLOR_BLACK)     #2 green
-curses.init_pair(3, curses.COLOR_YELLOW,    curses.COLOR_BLACK)     #3 yellow
-curses.init_pair(4, curses.COLOR_RED,       curses.COLOR_BLACK)     #4 red
-curses.init_pair(5, curses.COLOR_BLACK,     curses.COLOR_YELLOW)    #5 black on yellow
-curses.init_pair(6, curses.COLOR_WHITE,     curses.COLOR_BLUE)  #white on blue
-curses.init_pair(7, curses.COLOR_YELLOW,    curses.COLOR_WHITE)     #yellow on white
-curses.init_pair(8, curses.COLOR_BLUE,      curses.COLOR_BLACK)     #blue on black
-curses.init_pair(9, curses.COLOR_WHITE,     curses.COLOR_RED)   #white on red
-curses.init_pair(10,curses.COLOR_MAGENTA,   curses.COLOR_BLACK)     #magenta
-curses.init_pair(11,curses.COLOR_WHITE,     curses.COLOR_YELLOW)    #white on yellow
-curses.init_pair(12,curses.COLOR_YELLOW,    curses.COLOR_RED)   #yellow on red
-curses.init_pair(13,curses.COLOR_BLACK,     curses.COLOR_MAGENTA)   #black on magenta
-curses.init_pair(14,curses.COLOR_MAGENTA,   curses.COLOR_GREEN) #magenta on green
-curses.init_pair(15,curses.COLOR_WHITE, curses.COLOR_BLUE)  #white on blue
-curses.init_pair(16,curses.COLOR_BLUE,  curses.COLOR_YELLOW)    #blue on yellow
-curses.init_pair(17,curses.COLOR_BLACK, -1)         #test
-curses.init_pair(18,curses.COLOR_CYAN,  curses.COLOR_BLACK) #cyan
+if havecurses:
+    curses.init_pair(0, curses.COLOR_WHITE,     curses.COLOR_BLACK)
+    curses.init_pair(1, curses.COLOR_BLACK,     curses.COLOR_WHITE)     #1 black on white
+    curses.init_pair(2, curses.COLOR_GREEN,     curses.COLOR_BLACK)     #2 green
+    curses.init_pair(3, curses.COLOR_YELLOW,    curses.COLOR_BLACK)     #3 yellow
+    curses.init_pair(4, curses.COLOR_RED,       curses.COLOR_BLACK)     #4 red
+    curses.init_pair(5, curses.COLOR_BLACK,     curses.COLOR_YELLOW)    #5 black on yellow
+    curses.init_pair(6, curses.COLOR_WHITE,     curses.COLOR_BLUE)  #white on blue
+    curses.init_pair(7, curses.COLOR_YELLOW,    curses.COLOR_WHITE)     #yellow on white
+    curses.init_pair(8, curses.COLOR_BLUE,      curses.COLOR_BLACK)     #blue on black
+    curses.init_pair(9, curses.COLOR_WHITE,     curses.COLOR_RED)   #white on red
+    curses.init_pair(10,curses.COLOR_MAGENTA,   curses.COLOR_BLACK)     #magenta
+    curses.init_pair(11,curses.COLOR_WHITE,     curses.COLOR_YELLOW)    #white on yellow
+    curses.init_pair(12,curses.COLOR_YELLOW,    curses.COLOR_RED)   #yellow on red
+    curses.init_pair(13,curses.COLOR_BLACK,     curses.COLOR_MAGENTA)   #black on magenta
+    curses.init_pair(14,curses.COLOR_MAGENTA,   curses.COLOR_GREEN) #magenta on green
+    curses.init_pair(15,curses.COLOR_WHITE, curses.COLOR_BLUE)  #white on blue
+    curses.init_pair(16,curses.COLOR_BLUE,  curses.COLOR_YELLOW)    #blue on yellow
+    curses.init_pair(17,curses.COLOR_BLACK, -1)         #test
+    curses.init_pair(18,curses.COLOR_CYAN,  curses.COLOR_BLACK) #cyan
 
 
 C_WHITE = color_pair(1)
