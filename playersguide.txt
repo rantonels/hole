@@ -24,15 +24,17 @@ everytime you want to update Hole.
 ---HOW TO RUN---
 
 
-LINUX / MAC OS
+LINUX / MAC OS (Mac not tested)
 
-First of all, choose a terminal emulator (programs like gnome-terminal, xterm, etc.) that you like and has basic color support. Configure it as you please, selecting a font and size that allows for a screen size of at least 67x26.
+First of all, if you want to play in a terminal window, choose a terminal emulator (programs like gnome-terminal, xterm, etc.) that you like and has basic color support. Configure it as you please, selecting a font and size that allows for a screen size of at least 67x26.
 
 Hole will run on Python 2.* and Python 3.3. Only using the latter you will be able to access Unicode mode, because of a linking bug in the curses module for Python 2.
 
 Make sure you have python and python-curses installed (they should already be.) If you have apt-get (ubuntu, mint, etc...) run:
 
 $ sudo apt-get install python
+
+If you want to run in a standalone window (Graphical/Standalone mode) you will also need to install the pygame module.
 
 To run the game use:
 
@@ -49,23 +51,31 @@ $ /opt/python3.3/bin/python3 hole
 
 
 
-WINDOWS
+WINDOWS (Finally tested!)
 
-(not tested!)
+Install Python (2.7 recommended.)
 
-Install python.
+Install the pygame library (avoid 64-bit versions as they don't seem to be able to link correctly to Python. If the setup can't find a Python installation in the registry, switch to the 32-bit version suited to your Python version)
 
-Open a terminal window. Run
+Open a terminal window ("Start" -> "Run"/"Esegui" and type cmd.) Run the command
 
-DIR PATHTOGAMEFILES
+dir PATHTOGAMEFILES
 
-PYTHON HOLE.XXX		(XXX is the version number)
+where the path is where you extracted/copied hole. Then run:
+
+c:\\Python27\python.exe hole
+
+change this line if you have a different version of python.
 
 
 
----ASCII/UNICODE/GRAPHIC--- (IGNORE IF NOT IN DEBUG MODE)
+---ASCII/UNICODE/GRAPHIC---
 
-Hole was originally written using the ASCII charset. This is a very limited but universally supported set of symbols. Since version 1.0.6, a Unicode mode is included, which extend greatly the set of available glyphs and thus provides more interesting graphics. However, it comes with a cost: Hole has to be run with Python3.3, and the terminal emulator and his font must support unicode. If you want to give it a try, you can select UNICODE at the beginning of the game execution. If this menu popping up every damn time annoys you, bypass it by appending the options --ascii or --unicode when running hole on the command line.
+Ascii Mode: Play in terminal window using ascii graphics with curses (Linux only)
+Unicode Mode: Play in terminal window using text graphics with utf8 characters with curses (Linux only, Python 3.3)
+Standalone Mode: Play in standalone window with ascii graphics (Windows and Linux)
+
+Hole was originally written using the ASCII charset. This is a very limited but universally supported set of symbols. Since version 1.0.6, a Unicode mode is included, which extend greatly the set of available glyphs and thus provides more interesting graphics. However, it comes with a cost: Hole has to be run with Python3.3, and the terminal emulator and his font must support unicode. If you want to give it a try, you can select UNICODE at the beginning of the game execution. If this menu popping up every damn time annoys you, bypass it by appending the options --ascii, --unicode or --standalone  when running hole on the command line.
 
 When playing in Unicode mode, be wary that symbols are different from those described in this guide.
 
@@ -169,7 +179,7 @@ False objects take the form of other objects; when you try to pick them up, they
 Powerful monsters that appear in a level right after the casting of a Winter Spell.
 
 *GNOMES (green g)
-Gnomes pop up from dirt in caves, try to steal money from you (or an item, if you are broke), then flee back in their tunnels. They can't hurt you, and are immune to attacks or magic. You can try picking them up by walking on them, and they will show up in your inventory. Every gnome has a different name and personality. {By "using" a Gnome with the U key, you can search the gnome for loot (your stolen items, for example) or ask him information.} You can then free the Gnome by dropping him, and he will escape quickly.  *information in {} curly brackets has yet to be implemented.*
+Gnomes pop up from dirt in caves, try to steal money from you (or an item, if you are broke), then flee back in their tunnels. They can't hurt you, and are immune to attacks or magic. You can try picking them up by walking on them, and they will show up in your inventory. Every gnome has a different name and personality. By "using" a Gnome with the U key, you can search the gnome for loot (your stolen items, for example) {or ask him information.} You can then free the Gnome by dropping him, and he will escape quickly.  *information in {} curly brackets has yet to be implemented.*
 
 
 
