@@ -7,6 +7,7 @@ print(u'╠═╬═╣╟─╫─╢╞═╪═╡├─┼─┤')
 print(u'║ ║ ║║ ║ ║│ │ ││ │ │')
 print(u'╚═╩═╝╙─╨─╜╘═╧═╛└─┴─┘')
 
+raw_input()
 
 import curses
 
