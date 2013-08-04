@@ -429,7 +429,7 @@ class dMap:
 
     for x in range(0,xsize):
         for y in range(0,ysize):
-            value = float(0)
+            value = float(randint(-10,10))//100
             for m in mb:
                 rq = (x-m[0])**2 + (y-m[1])**2 
                 if rq < rad**2:
@@ -448,25 +448,37 @@ class dMap:
         sx = (x1>x2)*2 - 1        
         sy = (y1>y2)*2 - 1
 
+        status = 0 
+        #0: in room 1
+        #1: in room 1 wall
+        #2: in transit
+        #3: in room 2 wall
+        #4: in room 2
+
         moves = [0 for _ in range(abs(x1-x2))] + [1 for _ in range(abs(y1-y2))]
         shuffle(moves)
         x = x2
         y = y2
-        doorable=[]
+        px = x
+        py = y
         for m in moves:
-            if self.caveArr[x][y] == 2: 
-                doorable.append((x,y))
-            self.caveArr[x][y] = 0
+
+            if self.caveArr[x][y] == 2:
+                self.caveArr[x][y] = 3
+            else:
+                self.caveArr[x][y] = 0
+
+                
+
+
+            #move
+            px = x
+            py = y
             if m == 0:
                 x+=sx
             if m == 1:
                 y+=sy
         self.caveArr[x1][y1] = 0
-        dc = doorable
-        
-        if len(doorable) <= 2:
-            for d in doorable:
-                self.caveArr[d[0]][d[1]] = 3
 
 
    def dropNode(self,x,y,r):
@@ -561,7 +573,7 @@ class dMap:
                 for g in gg:
                     if (not g[0] in range(0,xsize)) or (not g[1] in range(0,ysize)):
                         continue
-                    if self.caveArr[g[1]][g[0]] in [0,66]:
+                    if self.caveArr[g[1]][g[0]] in [0,3,66]:
                         clean = False
                 if clean:
                     toclean.append((i,j))
@@ -587,7 +599,7 @@ class dMap:
                 if self.caveArr[i][j] != 55:
                     canPlace = False
         if canPlace:
-                rooms.append((x+w//2,y+l//2))
+                rooms.append((x,y,w,l))
                 if randint(0,3) > 0:
                     for i in range(x,x+w):
                         for j in range(y,y+l):           
@@ -615,7 +627,7 @@ class dMap:
         safec += 1
 
 
-    nodes = [ (r[0],r[1]) for r in rooms ]
+    nodes = [ (r[0],r[1],r[2],r[3]) for r in rooms ]
 
     edges = [ (a,b, abs(a[0]-b[0]) + abs(a[1]-b[1])) for a in nodes for b in nodes ]
 
@@ -623,7 +635,14 @@ class dMap:
 
 
     for e in mst:
-        self.drawranline(e[0][0],e[0][1],e[1][0],e[1][1])
+        r1 = e[0]
+        r2 = e[1]
+        
+        
+        p1 = (r1[0] + r1[2]//2 , r1[1] + r1[3]//2)
+        p2 = (r2[0] + r2[2]//2 , r2[1] + r2[3]//2)
+        
+        self.drawranline(p1[0],p1[1],p2[0],p2[1])
 
     toclean=[]
     for i in range(0,xsize):
@@ -634,7 +653,7 @@ class dMap:
                 for g in gg:
                     if (not g[0] in range(0,xsize)) or (not g[1] in range(0,ysize)):
                         continue
-                    if self.caveArr[g[1]][g[0]] in [0,66]:
+                    if self.caveArr[g[1]][g[0]] in [0,3,66]:
                         clean = False
                 if clean:
                     toclean.append((i,j))

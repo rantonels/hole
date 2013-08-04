@@ -65,7 +65,15 @@ COLORPAIRS = {
     7:(C_YELLOW,    C_WHITE),
     8:(C_BLUE,      C_BLACK),
     9:(C_WHITE,     C_RED),
-    10:(C_MAGENTA,  C_BLACK)
+    10:(C_MAGENTA,  C_BLACK),
+    11:(C_WHITE,    C_YELLOW),
+    12:(C_YELLOW,   C_RED),
+    13:(C_BLACK,    C_MAGENTA),
+    14:(C_MAGENTA,  C_GREEN),
+    15:(C_WHITE,    C_BLUE),
+    16:(C_BLUE,     C_YELLOW),
+    18:(C_CYAN,     C_BLACK),
+    19:(C_BLACK,    C_BLUE)
 }
 
 class Pad:

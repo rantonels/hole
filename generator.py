@@ -66,7 +66,9 @@ for y in range(starty):
 			line += "?"
 			
         print line
-'''
+
+print
+
 s=""
 for a in range(starty):
 	for b in range(startx):
@@ -77,7 +79,8 @@ for a in range(starty):
 	s += "\n"
 
 print s
-'''
+
+print
 
 s=""
 for b in range(60):
@@ -87,7 +90,7 @@ for b in range(60):
         elif somename.caveArr[a][b]==1:
             s += "."
         elif somename.caveArr[a][b]==2:
-            s += "#"
+            s += "%"
         elif somename.caveArr[a][b]==3:
             s += "="
         elif somename.caveArr[a][b]==55:
@@ -100,4 +103,3 @@ for b in range(60):
 
 print s
 
-print openings

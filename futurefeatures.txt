@@ -13,6 +13,8 @@ THINGS I WILL IMPLEMENT:
 * skill system
 * alchemy/metals/potions system
 * show exit position if already seen
+* light (limited shelf-life torches etc...)
+* show enemies details
 
 
 THINGS FORMERLY IN THE LIST ABOVE
