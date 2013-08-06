@@ -3,10 +3,43 @@
 
 import sys
 
+#load and parse configuration
+options = {}
+try:
+    configfile = open('options.cfg')
+    optl = configfile.readlines()
+
+    for l in optl:
+        line = l[:-1].strip()
+        if '#' in line:
+            line, comment = line.split('#', 1)
+
+        if line == "":
+            1
+
+        elif ':' in line:
+            tkey, tvalue = line.split(':',1)
+            options[tkey.strip()] = tvalue.strip()
+        else:
+            print("Error in parsing options.txt. Offending line:")
+            print(l)
+            print("Please ensure that lines are in the format Key:Value")
+            exit()
+
+except IOError:
+    print("options.txt not found, going on...")
+
+    
+
 sys.setrecursionlimit(60*60)
 
 DEBUG = False
 MODE = -1
+if "mode" in options:
+    MODE = int(options["mode"])
+if "debug" in options:
+    DEBUG = int(options["debug"])
+
 if len(sys.argv)>1:
     for a in sys.argv[1:]:
         if a == "-d":
@@ -134,6 +167,7 @@ if MODE == -1:
 
         stdscr.addstr(12,1,"P.S.: you can avoid this prompt by appending ")
         stdscr.addstr(13,1,"the --ascii, --unicode or --standalone options")
+        stdscr.addstr(14,1,"or editing options.cfg")
         stdscr.refresh()
         s=stdscr.getch()
         if s == curses.KEY_UP:
@@ -3393,6 +3427,8 @@ x=-1
 y=-1
 clairvoying=0
 visibility_dots=True
+if "vdots" in options:
+    visibility_dots = int(options["vdots"])
 fovBrain = Map()
 while alive:
     if waterfrozen:
