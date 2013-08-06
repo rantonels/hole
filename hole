@@ -75,7 +75,7 @@ def get_line(x1, y1, x2, y2):
         points.reverse()
     return points
 
-(WINX, WINY) = (67,30)
+(WINX, WINY) = (72,35)
 
 from random import randint
 
@@ -83,6 +83,12 @@ try:
     from dMap import *
 except ImportError:
     print("could not find the crucial file dMap.py. Are you running from *inside* the hole directory?")
+
+
+try:
+    import astar
+except ImportError:
+    print("could not find the crucial file astar.py. Are you running from *inside* the hole directory?")
 
 
 try:
@@ -103,7 +109,8 @@ if havecurses:
 
     (WY,WX) = stdscr.getmaxyx()
 
-    while WX<WINX or WY<WINY:
+    if MODE < 2:
+      while WX<WINX or WY<WINY:
         (WY,WX) = stdscr.getmaxyx()
 
         stdscr.addstr(0,0,"SCREEN SIZE INSUFFICIENT. PLEASE RESIZE.")
@@ -263,6 +270,9 @@ DCLUT = [
 [ 1,1,0,0],
 [ 0,0,1,1]
 ]
+
+
+
 
 
 
@@ -546,10 +556,10 @@ class gnomeStuff:
 8:("Ghost"  ,'g',7,6,24,14)
 }'''
 
-LV_W=60
-LV_H=60
-LW_W=40
-LW_H=15
+LV_W =60
+LV_H =60
+LW_W =45
+LW_H =20
 
 converter = {
 0:0,
@@ -602,6 +612,22 @@ tset = {
 
 if UNICODE:
     tset[100] = (u'♒',6)
+
+xaminetiles = {
+    1: "It's a sturdy stone wall.",
+    2: "Uhmm... you shouldn't be able to see this...",
+    3: "It's a wooden door.",
+    4: "It's a staircaise leading down.",
+    5: "It's a beautiful wall decorated with gold.",
+    7: "It's a Takhnar's (TM) vending machine.",
+    8: "It's deadly lava, or magma, whatever.",
+   11: "It's a wet dirt/stone cave wall.",
+   12: "It's a solid wooden wall.",
+  100: "It's a powerful waterfront. You're dead.",
+  101: "Hey that's Oskar, Dark Mage. Scary guy. Nice abs though. 100000 HP"
+
+}
+
 
 ssheet = {
 0: ('*',3),
@@ -768,7 +794,7 @@ def spellcast(n):
             for i in range(0,LV_W):
                 for j in range(0,LV_H):
                     floodfill(i,j)
-        clairvoying = 1 + wand
+        clairvoying = 2 + wand
 
         mess("You cast a clairvoyance spell.")
 
@@ -1048,6 +1074,7 @@ gems=[False]*50
 slaindragons=0
 exp=0
 waterfrozen=False
+arrows = 10
 torch = [ [[0,0,-1],2000] ]
 curss = [0]*(MAXCURS+1)
 spellsprog = [1,0,0] 
@@ -1128,18 +1155,19 @@ dialogue2 = [
 #help panel
 helppanel = [
 "                                                                   ",
-" ? or o        open this panel                                     ",
-" ARROW KEYS    movement/attack                                     ",
-" u             use object from inventory (eat, equip, etc...)      ",
-" d             drop object from inventory/equipment                ",
-" i             info panel                                          ",
-" c             cast spell                                          ",
-" a             pick up item (right where you are)                  ",
-" s             skip turn                                           ",
-" v             toggle FOV dots (the annoying blue m*********ers)   ",
-" p             commit suicide (yes, you'll need this.)             ",
-" q             see messages history (arrow keys to navigate)       ",
-" z             sort inventory alphabetically                       ",
+" ? or o             open this panel                                     ",
+" arrows or hjkl     movement/attack                                     ",
+" u                  use object from inventory (eat, equip, etc...)      ",
+" d                  drop object from inventory/equipment                ",
+" i                  info panel                                          ",
+" c                  cast spell                                          ",
+" a                  pick up item (right where you are)                  ",
+" s                  skip turn                                           ",
+" v                  toggle FOV dots (the annoying blue m*********ers)   ",
+" p                  commit suicide (yes, you'll need this.)             ",
+" q                  see messages history (arrow keys to navigate)       ",
+" z                  sort inventory alphabetically                       ",
+" x                  examine, look around, see enemy stats               ",
 "                                                                   "
 
 ]
@@ -1243,6 +1271,39 @@ def addburn(o):
     mess("You use the "+object_names(o)+" to fuel the torch")
     return True
 
+throwdata = {
+    OBJ_STONE:10
+}
+
+def throw(o,tget):
+    if o == -1:
+        damage = 14
+    else:
+        damage = throwdata[o[2]]
+
+    l = get_line(x,y,tget[0],tget[1])
+
+    status = 0
+
+    for p in l[1:]:
+        for e in entities:
+            if e[0:2] == list(p):
+                hite(e,damage)
+                status = 1
+                break
+        if status == 1:
+            break
+        if not iswalkable(p[0],p[1]):
+            mess("The "+object_names(o)+" hits an obstacle.")
+            status = 2
+            break
+
+    if status == 0:
+        mess("The "+object_names(o)+" falls to the floor.")
+               
+                     
+    
+
 def hitp(force,ignoredef=False):
     global hp, dfn, equip
     if ignoredef:
@@ -1339,7 +1400,7 @@ def givexp(amt):
 def iswall(cx,cy):
     if((cx<0)or(cy<0)or(cx>=LV_W)or(cy>=LV_H)):
         return False
-    return lvl[cx][cy] in [1,3,4,5,11,12]
+    return lvl[cx][cy] in [1,3,4,5,7,11,12]
  
 
 def isfreepos(cx,cy):
@@ -1526,9 +1587,12 @@ class Map(object):
         return lvl[x][y]
     def blocked(self, x, y):
         global lvl
+        if (lvl[x][y] in [100]): #transparent tiles
+            return False
         return (x < 0 or y < 0
                 or x >= self.width or y >= self.height
-                or not isnonsolid(lvl[x][y]))
+                or (not isnonsolid(lvl[x][y]))
+                    )
     def lit(self, cx, cy):
         global fow,x,y,lvl,clairvoying,attributes
 
@@ -1537,7 +1601,7 @@ class Map(object):
              return True
          else:
             return False
-        elif clairvoying == 2:
+        elif clairvoying >= 2:
             return True
 
         return self.light[cy][cx] == self.flag
@@ -1593,7 +1657,7 @@ class Map(object):
                              self.mult[0][oct], self.mult[1][oct],
                              self.mult[2][oct], self.mult[3][oct], 0)
 
-def checkfow(a,b):
+def _checkfow(a,b): # DEPRECATED!
     global fow,x,y,lvl,clairvoying,attributes
 
     if clairvoying == 1:
@@ -1845,10 +1909,13 @@ def draw():
                         fog[i][j] = 1
                 if fag(i,j):
                     tilecol = color_pair(tset[lvl[i][j]][1])
-                    if iswall(i,j) and fovBrain.lit(i,j) == False:
-                        mypad.addch(j,i,tset[lvl[i][j]][0],color_pair(19))
-                    elif lvl[i][j] == 100 and waterfrozen:    
-                        mypad.addch(j,i,'/' , color_pair(15))
+                    if iswall(i,j) and fovBrain.lit(i,j) == False: #blue outside fov
+                        if lvl[i][j] in [3,4,7]: #special tiles for blue-on-black
+                            cccc = color_pair(8)
+                        else: #else, black on blue
+                            cccc = color_pair(19)
+                        mypad.addch(j,i,tset[lvl[i][j]][0],cccc)
+                    
                     elif visibility_dots and lvl[i][j] == 0:
                             if fovBrain.lit(i,j):
                                 mypad.addstr(j,i,visdotchar,color_pair(8))
@@ -1857,7 +1924,10 @@ def draw():
                         mypad.addstr(j,i,WALLS[total][0].encode('utf-8'),color_pair(WALLS[total][1]))
                     else:
                         if fovBrain.lit(i,j):
-                            mypad.addstr(j,i,tset[lvl[i][j]][0] , tilecol  )
+                            if lvl[i][j] == 100 and waterfrozen:    
+                                mypad.addch(j,i,'/' , color_pair(15))
+                            else:
+                                mypad.addstr(j,i,tset[lvl[i][j]][0] , tilecol  )
                                 
                 else:
                     mypad.addch(j,i,' ',color_pair(0))
@@ -1909,7 +1979,6 @@ def draw():
 
         mypad.addch(y,x,'@',c)
 
-        clairvoying = 0
 
         #border
         back.erase()
@@ -1993,8 +2062,8 @@ def draw():
                 if f[0] == [0,0,-1]:
                     tstr += "Oil"
                 else:
-                    tstr += object_names(f[0])[:5]
-                tstr += " (%s)"%f[1]
+                    tstr += object_names(f[0])[:7]
+                tstr += " (%s) "%f[1]
 
         if len(tstr)>40:
             tstr = "[...] "+tstr[-35:]
@@ -2004,11 +2073,11 @@ def draw():
         blitback()
         blitlvl()
     
-        flush_main()
+#       flush_main()
 
 def dopturn(cmd):
 
-        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots
+        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,clairvoying
 
         turn = False
 
@@ -2163,6 +2232,123 @@ def dopturn(cmd):
                     turn=1  
                     return True
 
+        #f button throw
+
+        if cmd == ord('f') and DEBUG:
+            throw([0,0,OBJ_STONE],(x+10,y))
+
+        #x button examine
+        if cmd == ord('x'):
+            cursor = [x,y]
+            showpath = 0
+            vobj = [k for k in entities + objects if (fovBrain.lit(k[0],k[1]) or ([k[0],k[1]] == [x,y])) ]
+            point = 0               
+
+            vobj.sort(key = lambda k :  LV_W*k[1] + k[0] )
+
+            path = []
+
+            while True:
+
+                text = []
+                if cursor == [x,y]:
+                    text.append("That's you, the hero.")
+                    doents = True
+                elif fovBrain.lit(cursor[0],cursor[1]):
+                    if lvl[cursor[0]][cursor[1]] in xaminetiles:
+                        if lvl[cursor[0]][cursor[1]] == 100 and waterfrozen:
+                            text.append("The water wave has rapidly frozen in a huge, shiny, silent mass of cold ice.")
+                        else:
+                            text.append(xaminetiles[lvl[cursor[0]][cursor[1]]])
+                    doents = True
+                else:
+                    text = ["This place is not visible or too dark from your viewpoint."]
+                    doents = False
+
+                
+
+                if doents:
+                    for e in entities:
+                        if e[0:2] == cursor:
+                            if len(e)>7:
+                                text.append("%s %s "%(e[3],e[2]) + "%s HP"%(e[6]) )
+                            elif len(e)>6:
+                                text.append("%s %s "%(e[3],e[2]))
+                            else:
+                                text.append("%s %s "%(e[3],e[2]))
+                    for o in objects:
+                        if o[0:2] == cursor:
+                            text.append("You see a "+object_names(o))
+
+                for _ in range(0,8-len(text)):
+                    text.append("")
+                text.append("[<^v>] or [hjkl]   to move cursor around")
+#                text.append("[Space]            to show path to point")
+                text.append("[Tab]              to cycle through creatures/items")
+                text.append("[Enter]            to exit examine mode")
+
+
+                
+                draw()
+                curc = 0
+                addchsafe(cursor[1],cursor[0],'X',color_pair(curc))
+                blitback()
+
+                if showpath:
+                    if path == -1:
+                        text.append("No path found to this point.")
+                    else:
+                        for po in path:
+                            mypad.addch(po[1],po[0],'.',color_pair(0))
+
+                blitlvl()                
+
+                for i in range(0,12):
+                    stdscr.addstr(LW_H+3+i,1," "*LW_W)
+                    if i < len(text):
+                        stdscr.addstr(LW_H+3+i,1,text[i])
+                
+                
+
+                flush_main()
+
+
+                s = getchar()
+
+                if s in [KEYUP,ord('k')]:
+                    cursor[1]-=1
+                elif s in [KEYDOWN,ord('j')]:
+                    cursor[1]+=1
+                elif s in [KEYLEFT,ord('h')]:
+                    cursor[0]-=1
+                elif s in [KEYRIGHT,ord('l')]:
+                    cursor[0]+=1
+                elif s in [ord('\t'),9]:
+                    if len(vobj)>0:
+                        cursor[0] = vobj[point][0]
+                        cursor[1] = vobj[point][1]                    
+                        point+=1
+                        point%=len(vobj)
+                elif s in [ord(' ')] and DEBUG:
+                    def blfunc(x,y):
+                        return not (fag(x,y) and iswalkable(x,y))
+                    path = astar.pathfind(blfunc, (x,y), tuple(cursor))
+                    showpath = 1
+
+                elif s in [KEYENTER]:
+                    break
+
+                cursor[0] %= LV_W
+                cursor[1] %= LV_H
+
+                camx = min(max(0,cursor[0]-LW_W//2),LV_W-LW_W-1)
+                camy = min(max(0,cursor[1]-LW_H//2),LV_H-LW_H-2)
+
+            camx = min(max(0,x-LW_W//2),LV_W-LW_W-1)
+            camy = min(max(0,y-LW_H//2),LV_H-LW_H-2)
+
+
+            return False
 
 
         #d button drop item
@@ -2860,7 +3046,7 @@ def dopturn(cmd):
                 gold=999
                 mana=999
                 givexp(500)
-            if cmd == ord('b'):
+            if cmd == ord('.'):
                 for i in range(0,len(gems)):
                     gems[i] = True
             if cmd == ord(','):
@@ -2869,6 +3055,327 @@ def dopturn(cmd):
             return False
 
         return turn
+
+
+def do_step():
+        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,waterfrozen,waterlvl,manacount
+
+        #move wotah
+        if not waterfrozen:
+            waterlvl+=1
+            if stage - waterlvl//WATSTEPS >= 3:
+                waterlvl+=2
+            if waterlvl==WATSTEPS*stage:
+                mess("You hear water entering the dungeon...")
+            if waterlvl//WATSTEPS>=stage:
+                if waterlvl%15==0:
+                    (xw,yw) = findfree()
+                    lvl[xw][yw] = 100
+                if waterlvl%10==0:
+                    for i in range(0,LV_W):
+                        for j in range(0,LV_H):
+                            if lvl[i][j]==100:
+                                for z in [(i-1,j),(i+1,j),(i,j-1),(i,j+1)]:
+                                    if iswalkable(z[0],z[1]):
+                                        lvl[z[0]][z[1]] = 99
+                    for i in range(0,LV_W):
+                        for j in range(0,LV_H):
+                            if lvl[i][j]==99:
+                                lvl[i][j]=100
+    
+        #move entities
+        for e in entities:
+            if e[2] == 'Gnome': #gnomes (no attack)
+                s = e[4].status
+                if s == GN_HIDING:
+                    if abs(e[0]-x)<15 and abs(e[1]-y)<15 and randint(0,3)==0 and cansee(e[0],e[1],x,y):
+                        if DEBUG:
+                            mess("Gnome awake")
+                        e[4].status = GN_EMPTY
+                if s == GN_EMPTY:
+                    if isnonsolid(lvl[e[0]][e[1]]) and abs(e[0]-x)<=1 and abs(e[1]-y)<=1:
+                        if gold > 0:
+                            bott = min(randint(1,3),gold)
+                            gold -= bott
+                            mess("A gnome strips you of your gold!",3)
+                            e[5].loot = [0,0,OBJ_GOLD,bott]
+                        elif len(inventory)>0:
+                            ggh = randint(0,len(inventory)-1)
+                            mess("A gnome strips you of your "+object_names(inventory[ggh]),3)
+                            e[5].loot = inventory[ggh]
+                            del inventory[ggh]
+                        else:
+                            mess("You have nothing to get stolen (that's sad)",3)
+                        e[4].status = GN_FULL
+                        
+                    elif abs(e[0]-x)<19 and abs(e[1]-y)<19:
+                            ex = e[0]
+                            ey = e[1]
+                            factx=-sgn(ex-x)
+                            facty=-sgn(ey-y)
+                            possible=[[ex,ey+facty],[ex+factx,ey]]
+                            possiblec = possible
+                            for p in possiblec:
+                                if not iswalkable(p[0],p[1]):
+                                    possible.remove(p)
+                            if len(possible)>0:
+                                (nx,ny)=choice(possible)
+                            if iswalkable(nx,ny):
+                                (e[0],e[1])=(nx,ny)
+                
+                if s == GN_FULL:
+                    ex = e[0]
+                    ey = e[1]
+                    factx=sgn(ex-x)
+                    facty=sgn(ey-y)
+                    possible=[[ex,ey+facty],[ex+factx,ey]]
+                    if len(possible)>0:
+                        (nx,ny)=choice(possible)
+                        (e[0],e[1])=(nx,ny)
+                        if not isnonsolid(lvl[nx][ny]):
+                            e[4].status = GN_DONE
+
+                        
+ 
+            elif e[3] == 'D': #dragon has different A.I.
+                ex = e[0]
+                ey = e[1]
+                if e[8].status == DR_AWAKE:
+                    if cansee(x,y,ex,ey): #move once
+                            factx=-sgn(ex-x)
+                            facty=-sgn(ey-y)
+                            possible=[[ex,ey+facty],[ex+factx,ey]]
+                    else:
+                        possible=[[ex,ey],[ex,ey],[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
+                    possiblec=possible
+                    for p in possiblec:
+                        if not iswalkable(p[0],p[1]):
+                            possible.remove(p)
+                    if len(possible)>0:
+                        (nx,ny)=choice(possible)
+                    if iswalkable(nx,ny):
+                        (e[0],e[1])=(nx,ny)
+
+                    if abs(x-e[0]) + abs(y-e[1]) <= 1:    #attack physically
+                        led=hitp(e[4])
+                        if led>0:
+                            mess("The Dragon hits you. (-"+str(led)+" HP)",4)
+                        
+                elif e[8].status == DR_ANGRY and e[8].charge == DR_IDLE:
+
+
+
+                    if abs(x-e[0]) + abs(y-e[1]) <= 2:  #start breathing
+                        if randint(0,1) == 0:
+                            e[8].bx=-sgn(e[0]-x)
+                            e[8].by=-sgn(e[1]-y)
+                            mess("The Dragon breathes in...")
+                            e[8].charge = DR_CHARGING
+                            e[8].particles = -1
+
+                        else:
+                            if abs(x-e[0]) + abs(y-e[1]) <= 1:    #attack physically
+                                led=hitp((e[4]*3)//2 )
+                                if led>0:
+                                    mess("The Dragon slashes you. (-"+str(led)+" HP)")
+
+
+                    else:
+                        for c in range(0,2):        #walk twice
+                            ex = e[0]
+                            ey = e[1]
+                            if cansee(x,y,ex,ey):
+                                    factx=-sgn(ex-x)
+                                    facty=-sgn(ey-y)
+                                    possible=[[ex,ey+facty],[ex+factx,ey]]
+                            else:
+                                    possible=[[ex,ey],[ex,ey],[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
+                            possiblec=possible
+                            for p in possiblec:
+                                if not iswalkable(p[0],p[1]):
+                                    possible.remove(p)
+                            if len(possible)>0:
+                                (nx,ny)=choice(possible)
+                            if iswalkable(nx,ny):
+                                (e[0],e[1])=(nx,ny)
+
+                elif e[8].status == DR_ANGRY and e[8].charge == DR_CHARGING:
+                    hit = False
+                    e[8].particles = 0
+                    for i in range(0,6):
+                        e[8].particles+=1
+                        if (e[0] + i* e[8].bx == x) and (e[1] + i*e[8].by == y):
+                            hit = True
+
+                        if not isnonsolid(lvl [ e[0] + i* e[8].bx ] [e[1] + i*e[8].by ] ):
+                            break
+
+                    if hit:
+                        hitp(500,True)
+                        mess("The Dragon fries you (-500 HP)")
+                    else:
+                            mess("The Dragon blows fire.")
+                    e[8].charge = DR_FIRING
+                    
+
+                elif e[8].status == DR_ANGRY and e[8].charge == DR_FIRING:
+                    if randint(0,3) == 0:
+                        mess("The Dragon becomes calm.")
+                        e[8].status = DR_AWAKE
+                        e[8].charge = DR_IDLE
+                    else:
+                        e[8].charge = DR_IDLE
+                    e[8].particles = 0
+
+
+            else: #not a dragon
+                if ord(e[3]) in range(ord('a'),ord('z')+1):
+                    if randint(0,25) > ord(e[3]) - ord('a'):
+                        reps = 1
+                    else:
+                        reps = 2
+                elif e[3] == 'D':
+                    reps = 1
+                else:
+                    reps = 2
+
+
+                if e[2] == "Fairy":
+                    if randint(0,16)==0:
+                        if (abs(x-e[0])+abs(y-e[1])) < 15:
+                            mess("The Fairy disappears before your eyes")
+                        (sx,sy)=findfree()
+                        e[0] = sx
+                        e[1] = sy
+
+
+                for lol in range(0,reps):
+                    ex=e[0]
+                    ey=e[1]
+                    if ((abs(ex-x)+abs(ey-y)) < 8) :
+                        if (abs(ex-x)+abs(ey-y)) == 1:
+                            led=hitp(e[4])
+                            if led>0:
+                                if randint(0,1) == 0:
+                                    mess("The "+e[2]+" hits you. (-"+str(led)+" HP)",4)
+                                else:
+                                    mess("The "+e[2]+" strikes you. (-"+str(led)+" HP)",4)
+                                if e[3] in freezinganimals:
+                                    if randint(0,10)==0:
+                                        curss[CURS_ICE] = randint(5,10)
+                                        mess("The "+e[2]+" has frozen you",4)
+                            else:
+                                mess("The "+e[2]+" misses.")
+
+                            if e[3] == 'S':
+                                if (not gender) and curss[CURS_LOVE] == 0:
+                                    mess("You get in love with the Succubus")
+                                curss[CURS_LOVE] = 10
+
+                            if (len(equip)>0) and (randint(0,30*(1+attributes[ATTR_STRONG_HANDS])) == 0):
+                                q = randint(0,len(equip)-1)
+                                mess("The "+e[2]+" has stripped you of your "+object_names(equip[q][0])+"!")
+                                del equip[q]
+                            possible=[]
+                        else:
+                            if cansee(x,y,ex,ey):
+                                factx=-sgn(ex-x)
+                                facty=-sgn(ey-y)
+                                possible=[[ex,ey+facty],[ex+factx,ey]]
+                            else:
+                                possible=[[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
+                    else:
+                        possible=[[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
+    
+            #if e[2] == "Dragon":
+            #   possible+=[[ex+i,ey+j] for i in (-1,1) for j in (-1,1)]
+            #   possiblec=possible
+            #   for p in possiblec:
+            #       if ((p[0]-e[8])**2 + (p[1]-e[9])**2) > 5:
+            #           possible.remove(p)
+                    possiblec=possible
+                    for p in possiblec:
+                        if not iswalkable(p[0],p[1]):
+                            possible.remove(p)
+                    if len(possible)>0:
+                        (nx,ny)=choice(possible)
+                        if iswalkable(nx,ny):
+                            (e[0],e[1])=(nx,ny)
+        #mana grow
+        if mana>0:
+            manacount+=1
+            if manacount%1000 == 0:
+                mana = min(mana+ 1 + mana//50,MAXMANA)
+    
+        #checkobjcollision
+        oc = objects
+        for o in oc:
+            if ((o[0] == x) and (o[1]==y)):
+                if o[2] == OBJ_GOLD:
+                    gold+=1
+                    mess("You find a gold nugget")
+                    objects.remove(o) 
+                if o[2] == OBJ_DROP:
+                    gain = randint(1,2)
+                    if attributes[ATTR_PIOUS]:
+                        gain = 2
+                    mana=min(mana+gain,MAXMANA)
+                    mess("You drink a mana drop (+"+str(gain)+")")
+                    objects.remove(o)
+                if o[2] == OBJ_EMERALD:
+                    gems[stage-1] = True
+                    mess("You find an emerald")
+                    objects.remove(o) 
+
+        #deal damage
+        if lvl[x][y] == 8:
+            scales=False
+            for s in equip:
+                if s[0][2] == OBJ_DRAGON_SCALES:
+                    scales = True
+
+            if not scales:
+                dmg = int(max(mxhp*0.08,5))
+                if attributes[ATTR_DRAGONBORN]:
+                    dmg = dmg//2
+                mess("You walk on lava (-"+str(dmg)+" HP)")
+                hitp(dmg,True)
+
+        #cure curses
+        if curss[CURS_ICE] == 1:
+            mess("You are unfrozen.",2)
+        for i in range(0,len(curss)):
+            curss[i]= max(0,curss[i]-1)
+
+        #consume torch
+        if len(torch)>0:
+            torch[-1][1] -= 1
+            if torch[-1][1] <= 0:
+                del torch[-1]
+            if len(torch) == 0:
+                mess("Your torch burns out. You are engulfed by darkness.",4)
+
+        #extend fog
+        
+        if False:
+            floodfill(x,y)
+            floodfill(x+1,y)
+            floodfill(x-1,y)
+            floodfill(x,y-1)
+            floodfill(x,y+1)
+        #for i in range(max(0,x-4),min(LV_W,x+4)):
+        #   for j in range(max(0,y-4),min(LV_H,y+4)):
+        #       fog[i][j] = 1
+        
+        
+        #check for death
+        if(hp<=0):
+            alive=False
+
+def do_prelim():
+    global clairvoying
+    #end clairvoying (it can't be forever, y'know?)
+    clairvoying = max(0,clairvoying-1)
 
 
 stdscr.clear()
@@ -3253,323 +3760,21 @@ while alive:
     while alive and crawlin:
         
 
+        #preliminaries
+        do_prelim()
+
         #1 PLAYER TURN
         cango=False
         while not cango:
             draw()
+            flush_main()
             cmd = getchar()
             cango = dopturn(cmd)
 
-        #move wotah
-        if not waterfrozen:
-            waterlvl+=1
-            if stage - waterlvl//WATSTEPS >= 3:
-                waterlvl+=2
-            if waterlvl==WATSTEPS*stage:
-                mess("You hear water entering the dungeon...")
-            if waterlvl//WATSTEPS>=stage:
-                if waterlvl%15==0:
-                    (xw,yw) = findfree()
-                    lvl[xw][yw] = 100
-                if waterlvl%10==0:
-                    for i in range(0,LV_W):
-                        for j in range(0,LV_H):
-                            if lvl[i][j]==100:
-                                for z in [(i-1,j),(i+1,j),(i,j-1),(i,j+1)]:
-                                    if iswalkable(z[0],z[1]):
-                                        lvl[z[0]][z[1]] = 99
-                    for i in range(0,LV_W):
-                        for j in range(0,LV_H):
-                            if lvl[i][j]==99:
-                                lvl[i][j]=100
-    
-        #move entities
-        for e in entities:
-            if e[2] == 'Gnome': #gnomes (no attack)
-                s = e[4].status
-                if s == GN_HIDING:
-                    if abs(e[0]-x)<15 and abs(e[1]-y)<15 and randint(0,3)==0 and cansee(e[0],e[1],x,y):
-                        if DEBUG:
-                            mess("Gnome awake")
-                        e[4].status = GN_EMPTY
-                if s == GN_EMPTY:
-                    if isnonsolid(lvl[e[0]][e[1]]) and abs(e[0]-x)<=1 and abs(e[1]-y)<=1:
-                        if gold > 0:
-                            bott = min(randint(1,3),gold)
-                            gold -= bott
-                            mess("A gnome strips you of your gold!",3)
-                            e[5].loot = [0,0,OBJ_GOLD,bott]
-                        elif len(inventory)>0:
-                            ggh = randint(0,len(inventory)-1)
-                            mess("A gnome strips you of your "+object_names(inventory[ggh]),3)
-                            e[5].loot = inventory[ggh]
-                            del inventory[ggh]
-                        else:
-                            mess("You have nothing to get stolen (that's sad)",3)
-                        e[4].status = GN_FULL
-                        
-                    elif abs(e[0]-x)<19 and abs(e[1]-y)<19:
-                            ex = e[0]
-                            ey = e[1]
-                            factx=-sgn(ex-x)
-                            facty=-sgn(ey-y)
-                            possible=[[ex,ey+facty],[ex+factx,ey]]
-                            possiblec = possible
-                            for p in possiblec:
-                                if not iswalkable(p[0],p[1]):
-                                    possible.remove(p)
-                            if len(possible)>0:
-                                (nx,ny)=choice(possible)
-                            if iswalkable(nx,ny):
-                                (e[0],e[1])=(nx,ny)
-                
-                if s == GN_FULL:
-                    ex = e[0]
-                    ey = e[1]
-                    factx=sgn(ex-x)
-                    facty=sgn(ey-y)
-                    possible=[[ex,ey+facty],[ex+factx,ey]]
-                    if len(possible)>0:
-                        (nx,ny)=choice(possible)
-                        (e[0],e[1])=(nx,ny)
-                        if not isnonsolid(lvl[nx][ny]):
-                            e[4].status = GN_DONE
+        #do step
+        do_step()
 
-                        
- 
-            elif e[3] == 'D': #dragon has different A.I.
-                ex = e[0]
-                ey = e[1]
-                if e[8].status == DR_AWAKE:
-                    if cansee(x,y,ex,ey): #move once
-                            factx=-sgn(ex-x)
-                            facty=-sgn(ey-y)
-                            possible=[[ex,ey+facty],[ex+factx,ey]]
-                    else:
-                        possible=[[ex,ey],[ex,ey],[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
-                    possiblec=possible
-                    for p in possiblec:
-                        if not iswalkable(p[0],p[1]):
-                            possible.remove(p)
-                    if len(possible)>0:
-                        (nx,ny)=choice(possible)
-                    if iswalkable(nx,ny):
-                        (e[0],e[1])=(nx,ny)
-
-                    if abs(x-e[0]) + abs(y-e[1]) <= 1:    #attack physically
-                        led=hitp(e[4])
-                        if led>0:
-                            mess("The Dragon hits you. (-"+str(led)+" HP)",4)
-                        
-                elif e[8].status == DR_ANGRY and e[8].charge == DR_IDLE:
-
-
-
-                    if abs(x-e[0]) + abs(y-e[1]) <= 2:  #start breathing
-                        if randint(0,1) == 0:
-                            e[8].bx=-sgn(e[0]-x)
-                            e[8].by=-sgn(e[1]-y)
-                            mess("The Dragon breathes in...")
-                            e[8].charge = DR_CHARGING
-                            e[8].particles = -1
-
-                        else:
-                            if abs(x-e[0]) + abs(y-e[1]) <= 1:    #attack physically
-                                led=hitp((e[4]*3)//2 )
-                                if led>0:
-                                    mess("The Dragon slashes you. (-"+str(led)+" HP)")
-
-
-                    else:
-                        for c in range(0,2):        #walk twice
-                            ex = e[0]
-                            ey = e[1]
-                            if cansee(x,y,ex,ey):
-                                    factx=-sgn(ex-x)
-                                    facty=-sgn(ey-y)
-                                    possible=[[ex,ey+facty],[ex+factx,ey]]
-                            else:
-                                    possible=[[ex,ey],[ex,ey],[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
-                            possiblec=possible
-                            for p in possiblec:
-                                if not iswalkable(p[0],p[1]):
-                                    possible.remove(p)
-                            if len(possible)>0:
-                                (nx,ny)=choice(possible)
-                            if iswalkable(nx,ny):
-                                (e[0],e[1])=(nx,ny)
-
-                elif e[8].status == DR_ANGRY and e[8].charge == DR_CHARGING:
-                    hit = False
-                    e[8].particles = 0
-                    for i in range(0,6):
-                        e[8].particles+=1
-                        if (e[0] + i* e[8].bx == x) and (e[1] + i*e[8].by == y):
-                            hit = True
-
-                        if not isnonsolid(lvl [ e[0] + i* e[8].bx ] [e[1] + i*e[8].by ] ):
-                            break
-
-                    if hit:
-                        hitp(500,True)
-                        mess("The Dragon fries you (-500 HP)")
-                    else:
-                            mess("The Dragon blows fire.")
-                    e[8].charge = DR_FIRING
-                    
-
-                elif e[8].status == DR_ANGRY and e[8].charge == DR_FIRING:
-                    if randint(0,3) == 0:
-                        mess("The Dragon becomes calm.")
-                        e[8].status = DR_AWAKE
-                        e[8].charge = DR_IDLE
-                    else:
-                        e[8].charge = DR_IDLE
-                    e[8].particles = 0
-
-
-            else: #not a dragon
-                if ord(e[3]) in range(ord('a'),ord('z')+1):
-                    if randint(0,25) > ord(e[3]) - ord('a'):
-                        reps = 1
-                    else:
-                        reps = 2
-                elif e[3] == 'D':
-                    reps = 1
-                else:
-                    reps = 2
-
-
-                if e[2] == "Fairy":
-                    if randint(0,16)==0:
-                        if (abs(x-e[0])+abs(y-e[1])) < 15:
-                            mess("The Fairy disappears before your eyes")
-                        (sx,sy)=findfree()
-                        e[0] = sx
-                        e[1] = sy
-
-
-                for lol in range(0,reps):
-                    ex=e[0]
-                    ey=e[1]
-                    if ((abs(ex-x)+abs(ey-y)) < 8) :
-                        if (abs(ex-x)+abs(ey-y)) == 1:
-                            led=hitp(e[4])
-                            if led>0:
-                                if randint(0,1) == 0:
-                                    mess("The "+e[2]+" hits you. (-"+str(led)+" HP)",4)
-                                else:
-                                    mess("The "+e[2]+" strikes you. (-"+str(led)+" HP)",4)
-                                if e[3] in freezinganimals:
-                                    if randint(0,10)==0:
-                                        curss[CURS_ICE] = randint(5,10)
-                                        mess("The "+e[2]+" has frozen you",4)
-                            else:
-                                mess("The "+e[2]+" misses.")
-
-                            if e[3] == 'S':
-                                if (not gender) and curss[CURS_LOVE] == 0:
-                                    mess("You get in love with the Succubus")
-                                curss[CURS_LOVE] = 10
-
-                            if (len(equip)>0) and (randint(0,30*(1+attributes[ATTR_STRONG_HANDS])) == 0):
-                                q = randint(0,len(equip)-1)
-                                mess("The "+e[2]+" has stripped you of your "+object_names(equip[q][0])+"!")
-                                del equip[q]
-                            possible=[]
-                        else:
-                            if cansee(x,y,ex,ey):
-                                factx=-sgn(ex-x)
-                                facty=-sgn(ey-y)
-                                possible=[[ex,ey+facty],[ex+factx,ey]]
-                            else:
-                                possible=[[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
-                    else:
-                        possible=[[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
-    
-            #if e[2] == "Dragon":
-            #   possible+=[[ex+i,ey+j] for i in (-1,1) for j in (-1,1)]
-            #   possiblec=possible
-            #   for p in possiblec:
-            #       if ((p[0]-e[8])**2 + (p[1]-e[9])**2) > 5:
-            #           possible.remove(p)
-                    possiblec=possible
-                    for p in possiblec:
-                        if not iswalkable(p[0],p[1]):
-                            possible.remove(p)
-                    if len(possible)>0:
-                        (nx,ny)=choice(possible)
-                        if iswalkable(nx,ny):
-                            (e[0],e[1])=(nx,ny)
-        #mana grow
-        if mana>0:
-            manacount+=1
-            if manacount%1000 == 0:
-                mana = min(mana+ 1 + mana//50,MAXMANA)
-    
-        #checkobjcollision
-        oc = objects
-        for o in oc:
-            if ((o[0] == x) and (o[1]==y)):
-                if o[2] == OBJ_GOLD:
-                    gold+=1
-                    mess("You find a gold nugget")
-                    objects.remove(o) 
-                if o[2] == OBJ_DROP:
-                    gain = randint(1,2)
-                    if attributes[ATTR_PIOUS]:
-                        gain = 2
-                    mana=min(mana+gain,MAXMANA)
-                    mess("You drink a mana drop (+"+str(gain)+")")
-                    objects.remove(o)
-                if o[2] == OBJ_EMERALD:
-                    gems[stage-1] = True
-                    mess("You find an emerald")
-                    objects.remove(o) 
-
-        #deal damage
-        if lvl[x][y] == 8:
-            scales=False
-            for s in equip:
-                if s[0][2] == OBJ_DRAGON_SCALES:
-                    scales = True
-
-            if not scales:
-                dmg = int(max(mxhp*0.08,5))
-                if attributes[ATTR_DRAGONBORN]:
-                    dmg = dmg//2
-                mess("You walk on lava (-"+str(dmg)+" HP)")
-                hitp(dmg,True)
-
-        #cure curses
-        for i in range(0,len(curss)):
-            curss[i]= max(0,curss[i]-1)
-
-        #consume torch
-        if len(torch)>0:
-            torch[-1][1] -= 1
-            if torch[-1][1] <= 0:
-                del torch[-1]
-            if len(torch) == 0:
-                mess("Your torch burns out. You are engulfed by darkness.",4)
-
-        #extend fog
-        
-        if False:
-            floodfill(x,y)
-            floodfill(x+1,y)
-            floodfill(x-1,y)
-            floodfill(x,y-1)
-            floodfill(x,y+1)
-        #for i in range(max(0,x-4),min(LV_W,x+4)):
-        #   for j in range(max(0,y-4),min(LV_H,y+4)):
-        #       fog[i][j] = 1
-        
-        
-        #check for death
-        if(hp<=0):
-            alive=False
-    
+            
     
         #camera
         camx = min(max(0,x-LW_W//2),LV_W-LW_W-1)

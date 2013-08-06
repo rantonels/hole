@@ -5,15 +5,15 @@ THINGS I WILL IMPLEMENT:
 * female gnomes in gnome village
 * fill last level with mobs
 * wrapper for exceptions (no more scrambled terminal windows!)
-* explore/examine command
 * smart fairies
-* bows and arrows
+* bows and arrows and throwing
 * abilities (sword, bow, magic)
 * race (even mixed)
 * skill system
 * alchemy/metals/potions system
-* show exit position if already seen
-* show enemies details
+* show exit position if already seen (prolly won't do this)
+* examine object in inventory command
+
 
 
 THINGS FORMERLY IN THE LIST ABOVE
@@ -22,6 +22,9 @@ THINGS FORMERLY IN THE LIST ABOVE
 * sort command DONE!
 * help (keybindings) panel DONE!
 * light (limited shelf-life torches etc...) DONE!
+* show enemies details KINDA!
+* explore/examine command DONE!
+
 
 
 GRAPHICAL/STANDALONE MODE:
@@ -29,6 +32,8 @@ GRAPHICAL/STANDALONE MODE:
 * bug: ? key does not work at all
 * no getstring functionality (= no custom player name!)
 * A DREAM: graphical tiles?
+
+
 
 SOLVED IN GRAPHICAL
 * bug: why is canvas so small? SOLVED
