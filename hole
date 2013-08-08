@@ -344,6 +344,91 @@ def isnonsolid(num):
     return (num in [0,8])
 
 
+class Item:
+    def __init__(self, oid, x=0, y=0):
+        self.ID = oid
+        self.x = x
+        self.y = y
+    def __str__(self):
+        return object_names(self)
+    def sprite(self):
+        return ssheet[self.ID][0]
+    def colour(self):
+        return ssheet[self.ID][1]
+    def sameas(self,other):
+        return ( (self.ID == other.ID) )
+    def __getitem__(self, index): #overloading to accomodate compatibility with older item system
+        dic = {
+            0:self.x,
+            1:self.y,
+            2:self.ID
+        }
+        if index in dic:
+            return dic[index]
+        else:
+            raise Exception("From item "+str(self)+" was requested the nonexisting index ["+str(index)+"]")
+    def coordlist(self):
+        return [self.x,self.y]
+    def coords(self):
+        return (self.x,self.y)
+    def position(self,x,y):
+        self.x = x
+        self.y = y
+
+
+        
+
+class Plant(Item):
+    def __init__(self,species,adj=0,identified=True,x=0,y=0):
+        Item.__init__(self,OBJ_PLANT,x,y)
+        self.species = species
+        self.adjective = adj
+        self.identified = identified
+    def sameas(self,other):
+        return Item.sameas(self,other) and (self.species == other.species) and (self.adjective == other.adjective)
+
+class Carcass(Item):
+    def __init__(self,wasanimal,x=0,y=0):
+        Item.__init__(self,OBJ_CARCASS,x,y)
+        self.original = wasanimal
+    def sprite(self):
+        return chr(self.original + ord('a'))
+
+class Chestmonster(Item):
+    def __init__(self,camouflage,x=0,y=0):
+        Item.__init__(self,OBJ_CHESTMONSTER,x,y)
+        if camouflage == OBJ_PLANT:
+            self.camouflage = ranplant()
+        else:
+            self.camouflage = Item(camouflage)
+        self.identified = False
+    def sprite(self):
+        if self.identified:
+            return Item.sprite(self)
+        else:
+            return self.camouflage.sprite()
+    def colour(self):
+        if self.identified:
+            return Item.colour(self)
+        else:
+            return self.camouflage.colour()
+
+class GnomeItem(Item):
+    def __init__(self,brain,x=0,y=0):
+        Item.__init__(self,OBJ_GNOME,x,y)
+        self.brain = brain 
+
+class Clue(Item):
+    def __init__(self,data,x=0,y=0):
+        Item.__init__(self,OBJ_PAPER,x,y)
+        self.data = data
+
+class Loot(Item):
+    def __init__(self,amount):
+        Item.__init__(self,OBJ_GOLD)
+        self.amount = amount
+
+
 #OBJECT STRUCTURE:
 # [0] x / null in inv
 # [1] y / null in inv
@@ -379,7 +464,9 @@ OBJ_BOOK_FIRE = 102
 OBJ_BOOK_THUNDER = 103
 OBJ_BOOK_GEOGRAPHY = 104
 OBJ_BOOK_TRANSMIGRATION = 105
-MAXBOOK = 105
+OBJ_BOOK_CLAIRVOYANCE = 106
+OBJ_BOOK_WINTER = 107
+MAXBOOK = 107
 
 OBJ_SWORD = 200
 OBJ_GLOVES = 201
@@ -404,7 +491,7 @@ guidetopic = {
 }
 
 def object_names(obj):
-    num = obj[2]
+    num = obj.ID
     out="ERROR"
     matr= {
     0:"Gold Nugget",
@@ -415,7 +502,7 @@ def object_names(obj):
     5:"Goulash",
     6:"Fairy Liver",
     7:"Pasta",
-    8:"CHESTMONSTER_DEBUG",
+    8:"False Item",
     9:"Stone",
     10:"Stramonium Seed",
     11:"Magic Handbook",
@@ -430,6 +517,8 @@ def object_names(obj):
     103:"Book of Thunder",
     104:"Book of Geography",
     105:"Book of Transmigration",
+    106:"Book of Clairvoyance",
+    107:"Book of Winter",
 
     200:"Sword",
     201:"Gloves",
@@ -447,21 +536,21 @@ def object_names(obj):
     if num in matr:
         out=matr[num]
     if num == 1:
-        if len(obj)>=6 and obj[5] == 1:
-            if obj[3] == 0:
-                out = plants[obj[4]]
+        if isinstance(obj,Plant) and obj.identified == 1:
+            if obj.adjective == 0:
+                out = plants[obj.species]
             else:
-                out = plant_adjectives[obj[3]][1] + " " + plants[obj[4]]
+                out = plant_adjectives[obj.adjective][1] + " " + plants[obj.species]
         else:
             out = "Herb"
     if num == OBJ_CARCASS:
-        out = mobsalphabet[obj[3]] + " Carcass" 
+        out = mobsalphabet[obj.original] + " Carcass" 
 
-    if num == OBJ_CHESTMONSTER and len(obj)>=5:
-        out = object_names([0,0,obj[4]])
+    if num == OBJ_CHESTMONSTER and not obj.identified:
+        out = object_names(obj.camouflage)
     
     if num == OBJ_GNOME:
-        out = obj[3].name
+        out = obj.brain.name
 
     return out
 
@@ -568,14 +657,11 @@ GN_DONE = 3
 class gnomeBrain:
     def __init__(self):
         self.status = GN_HIDING
-
-class gnomeStuff:
-    def __init__(self):
         self.name = choice(gnomenames)
-        if randint(0,1)==0:
+        if randint(0,0)==1:
             self.loot = -1
         else:
-            self.loot = [0,0,OBJ_SULFUR]
+            self.loot = Item(OBJ_SULFUR)
 
 
 '''mobs = {
@@ -687,6 +773,8 @@ ssheet = {
 103: ('?',3),
 104: ('?',3),
 105: ('?',10),
+106: ('?',3),
+107: ('?',18),
 
 200: ('!',0),
 201: (':',0),
@@ -834,7 +922,7 @@ def spellcast(n):
 
         for b in objects:
             if b[2] == OBJ_CHESTMONSTER and (abs(x-b[0])+abs(y-b[1]) < 15 ):
-                b[3] = 1
+                b.identified = 1
                 mess("A trap was revealed.")
 
     elif n==6: #shockwave
@@ -1031,12 +1119,12 @@ curses_colors = {
 }
     
 catalogue = [
-    [50,1,[0,0,OBJ_BOOK_BOTANY]],
-    [40,1,[0,0,OBJ_BOOK_GEOGRAPHY]],
-    [80,1,[0,0,OBJ_PLANT,5,0,1]],
-    [100,1,[0,0,OBJ_PLANT,5,2,1]],
-    [30,1,[0,0,OBJ_WAND]],      
-    [70,1,[0,0,OBJ_SWORD_GOLDEN]]
+    [50,1,Item(OBJ_BOOK_BOTANY)],
+    [40,1,Item(OBJ_BOOK_GEOGRAPHY)],
+    [80,1,Plant(5,0,1)],
+    [100,1,Plant(5,2,1)],
+    [30,1,Item(OBJ_WAND)],      
+    [70,1,Item(OBJ_SWORD_GOLDEN)]
 
 ]   
                         
@@ -1109,7 +1197,7 @@ slaindragons=0
 exp=0
 waterfrozen=False
 arrows = 10
-torch = [ [[0,0,-1],2000] ]
+torch = [ [Item(-1),2000] ]
 curss = [0]*(MAXCURS+1)
 spellsprog = [1,0,0] 
 if DEBUG:
@@ -1122,15 +1210,15 @@ specialending = -1
 
 name="ERROR"
 dungeonname = choice ( [ "Ala", "Seth", "More", "Dath", "Kathra"]) + choice ( [ "go", "na" , "ka", "gu", "ni"]) + choice ( [ "r", "r", "dor"])
-DEBUG_CHEST = [[0,0,OBJ_WAND], [0,0,OBJ_STONE], [0,0,OBJ_PLANT,0,1,1] , [0,0,OBJ_STONE], [0,0,OBJ_CARCASS,7], [0,0,OBJ_SULFUR] , [0,0,OBJ_SULFUR ] ]
-inventory = [ [0,0,OBJ_BREAD] , [0,0,OBJ_LETTER] ] #+ DEBUG_CHEST 
+DEBUG_CHEST = [ Carcass(4) , Item(OBJ_BOOK_WINTER) , Chestmonster(OBJ_BOOK_FIRE,0) , Chestmonster(OBJ_BOOK_FIRE,1) ] 
+inventory = [ Item(OBJ_BREAD) , Item(OBJ_LETTER) ] #+ DEBUG_CHEST 
 if DEBUG: inventory+= DEBUG_CHEST
 equip = [ ]
 
 dialogue0 = [
-(0,"I am {0}, I was sent from the King".format(name)),
+(0,"I am {0}, I was sent from the King"),
 (0,"I am here to murder you, Oskar."),
-(1,"I salute you, {0}.".format(name)),
+(1,"I salute you, {0}."),
 (1,"I'm a little confused here, though."),
 (1,"Because I was sent myself from His Majesty the King"),
 (1,"To slay Aradach, the Spider Goddess, and free these tunnels from the Darkness"),
@@ -1239,7 +1327,7 @@ def finale():
     global name, inventory, OBJ_LETTER, alive, specialending
     hasletter = False
     for c in inventory:
-        if c[2] == OBJ_LETTER:
+        if c.ID == OBJ_LETTER:
             hasletter = True
     diag = dialogue0 + dialogue1
     if hasletter:
@@ -1252,7 +1340,7 @@ def finale():
         stdscr.addstr(7,6,"                                             ")
         n = [name+": ","Oskar: ",""][l[0]]
         dcl = [color_pair(i) for i in [8,10,0]][l[0]]
-        s1 = (n+l[1])[:50]
+        s1 = (n+l[1].format(name))[:50]
         s2 = ""
         if len(n+l[1])>50:
             s2 = (n+l[1])[50:]
@@ -1291,17 +1379,21 @@ objects = []
 entities = []
 
 burndata = {
-    OBJ_SULFUR:500
+    OBJ_SULFUR:1000,
+    OBJ_WAND:50
 }
 
+for i in range(100,200): #books
+    burndata[i] = 100
+
 def addburn(o):
-    if not o[2] in burndata:
+    if not o.ID in burndata:
         mess("You can't burn that.")
         return False
-    if len(torch)==0 or torch[-1][0][2:] != o[2:]:
-       torch.append([o,burndata[o[2]]])
+    if len(torch)==0 or o.sameas(torch[-1][0]):
+       torch.append([o,burndata[o.ID]])
     else:
-       torch[-1][1] += burndata[o[2]]
+       torch[-1][1] += burndata[o.ID]
     mess("You use the "+object_names(o)+" to fuel the torch")
     return True
 
@@ -1313,7 +1405,7 @@ def throw(o,tget):
     if o == -1:
         damage = 14
     else:
-        damage = throwdata[o[2]]
+        damage = throwdata[o.ID]
 
     l = get_line(x,y,tget[0],tget[1])
 
@@ -1389,13 +1481,13 @@ def hite(e,force):
                 dropshit(e[0],e[1],e[3]-ord('a'))
             elif randint(0,8)==0:
                 #dropcarcass
-                objects.append([e[0],e[1], OBJ_CARCASS, e[3] - ord('a')])
+                objects.append(Carcass(e[3] - ord('a'), e[0], e[1]))
         if (e[2] == "Fairy"):
             if lvl[x][y]!=8:
-                objects.append([e[0],e[1],OBJ_FAIRY_LIVER])
+                objects.append(Item(OBJ_FAIRY_LIVER,e[0],e[1]))
         if (e[2] == "Dragon"):
             if lvl[x][y]!=8:
-                objects.append([e[0],e[1],OBJ_DRAGON_SCALES])
+                objects.append(Item(OBJ_DRAGON_SCALES,e[0],e[1]))
             slaindragons += 1
                 
         entities.remove(e)
@@ -1730,7 +1822,7 @@ def _checkfow(a,b): # DEPRECATED!
 
 def ranplant():
     r = (0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,2,2,2,2,3,3,3,3,4,4,5)
-    return [OBJ_PLANT,choice(r),randint(0,4),randint(0,3)//3]
+    return Plant(choice(r),randint(0,4),randint(0,3)//3)
 
 
 dada =[
@@ -1971,23 +2063,23 @@ def draw():
                 #    mypad.addch(j,i,'+')
         #draw objects
         for o in objects:
-            if fog[o[0]][o[1]] and fovBrain.lit(o[0],o[1]):
-                    if o[2] == OBJ_CHESTMONSTER and o[3] == 0:
-                        mypad.addch(o[1],o[0],ssheet[o[4]][0], color_pair( ssheet[o[4]][1]))
-                    elif o[2] == OBJ_CARCASS:
-                        mypad.addch(o[1],o[0],chr(ord('a')+o[3]),color_pair(0))
-                    else:
-                        mypad.addstr(o[1],o[0],ssheet[o[2]][0], color_pair(ssheet[o[2]][1]))  
+            if fog[o.x][o.y] and fovBrain.lit(o.x,o.y):
+#                   if o[2] == OBJ_CHESTMONSTER and o[3] == 0:
+#                       mypad.addch(o[1],o[0],ssheet[o[4]][0], color_pair( ssheet[o[4]][1]))
+#                   elif o[2] == OBJ_CARCASS:
+#                       mypad.addch(o[1],o[0],chr(ord('a')+o[3]),color_pair(0))
+#                   else:
+                        mypad.addstr(o.y,o.x,o.sprite(), color_pair(o.colour()))  
         
         #draw entities
         for e in entities:
-            if e[2] == "Gnome" and (not isnonsolid(lvl[e[0]][e[1]])):
-                continue
             if fog[e[0]][e[1]] and fovBrain.lit(e[0],e[1]):
                 if lvl[e[0]][e[1]] == 8:
                     c=color_pair(12)
                 else:
                     if e[2] == "Gnome":
+                        if (not clairvoying and not isnonsolid(lvl[e[0]][e[1]])):
+                            continue
                         c = color_pair(2)
                     else:
                         c=color_pair(4) 
@@ -2076,7 +2168,7 @@ def draw():
         for i in range(0,len(inventory)):
             s = object_names(inventory[i])[:INVCLIP]
 
-            back.addstr(7+i,LW_W+4, s,color_pair(ssheet[inventory[i][2]][1]))
+            back.addstr(7+i,LW_W+4, s, color_pair(inventory[i].colour() ))
 
         back.addstr(2,LW_W+2+8,"EQUIPMT")
 
@@ -2093,7 +2185,7 @@ def draw():
         else:
             tstr = ""
             for f in torch:
-                if f[0] == [0,0,-1]:
+                if f[0].ID == -1:
                     tstr += "Oil"
                 else:
                     tstr += object_names(f[0])[:7]
@@ -2119,7 +2211,7 @@ def dopturn(cmd):
         if curss[CURS_POISON] == 1:
             toosick=True
             mess("You puke. (-20 HP)",4)
-            objects.append([x,y,OBJ_PUKE])
+            objects.append(Item(OBJ_PUKE,x,y))
             hitp (20,True)
             return True
 
@@ -2163,7 +2255,7 @@ def dopturn(cmd):
                         if e[2] == "Gnome" and e[4].status != GN_DONE:
                             if (len(inventory)<MAXINV) and  (randint(0,2) + (not attributes[ATTR_STRONG_HANDS]))<1:
                                 mess("You catch a Gnome")
-                                inventory.append([0,0,OBJ_GNOME,e[5]])
+                                inventory.append(GnomeItem(e[4]))
                                 entities.remove(e)
                                 return True 
                             else:
@@ -2178,10 +2270,10 @@ def dopturn(cmd):
                         else:
                             tpow = atk
                             for k in equip:
-                                if k[0][2] == OBJ_SWORD:
+                                if k[0].ID == OBJ_SWORD:
                                     tpow = (atk * 3)//2
                             for k in equip:
-                                if k[0][2] == OBJ_SWORD_GOLDEN:
+                                if k[0].ID == OBJ_SWORD_GOLDEN:
                                     tpow = (atk * 5)//2
                             hite(e,tpow)
                             return True
@@ -2219,7 +2311,7 @@ def dopturn(cmd):
                             if v[1] == 0:
                                 s = "Gold plate it!"
                             elif v[1] == 1:
-                                s = object_names(v[2])
+                                s = object_names(v[1])
                             stdscr.addstr(lei + 3,6,str(lei) + ") "+ (goodstring(s)) + str(v[0])+"* ", color_pair(j))
                             lei+=1
                         stdscr.addstr(11,3,vmachword[0])
@@ -2269,7 +2361,18 @@ def dopturn(cmd):
         #f button throw
 
         if cmd == ord('f') and DEBUG:
-            throw([0,0,OBJ_STONE],(x+10,y))
+            throw(Item(OBJ_STONE),(x+10,y))
+            return True
+
+        #b button burn
+
+        if cmd == ord('b') and DEBUG:
+            istoburn=False
+            for i in inventory:
+                if i.ID in burndata:
+                    istoburn=True
+            mess("You have nothing to burn.")
+
 
         #x button examine
         if cmd == ord('x'):
@@ -2311,7 +2414,7 @@ def dopturn(cmd):
                             else:
                                 text.append("%s %s "%(e[3],e[2]))
                     for o in objects:
-                        if o[0:2] == cursor:
+                        if o.coordlist() == cursor:
                             text.append("You see a "+object_names(o))
 
                 for _ in range(0,8-len(text)):
@@ -2426,36 +2529,40 @@ def dopturn(cmd):
                     pos = it - len(equip)
                     #special droppings
                     if inventory[pos][2] == OBJ_GNOME:
-                        mess("You let "+inventory[pos][3].name+" go")
-                        gibby = [x,y]+bosses["Gnome"] + [gnomeBrain(),inventory[pos][3]]
+                        mess("You let "+inventory[pos].brain.name+" go")
+                        gibby = [x,y]+bosses["Gnome"] + [inventory[pos].brain]
                         gibby[4].status = GN_FULL
                         entities.append(gibby)
                         del inventory[pos]
                     else: #ordinary droppings (special effects)
                         sbobs=False
-                        if inventory[pos][2] == OBJ_STONE:
+                        if inventory[pos].ID == OBJ_STONE:
                             for e in objects:
-                                if (e[2] == OBJ_PLANT) and (e[4] == 1 ) and (e[0]==x) and (e[1]==y):
+                                if (e.ID == OBJ_PLANT) and (e.species == 1 ) and (e[0]==x) and (e[1]==y):
                                     sbobs = True
                         mess("You drop the "+object_names(inventory[pos]))
                         if lvl[x][y] == 8:
                             mess("...it is consumed by the lava")
                         else:
-                            objects.append([x,y]+inventory[pos][2:])
+                            inventory[pos].x = x
+                            inventory[pos].y = y
+                            objects.append(inventory[pos])
 
                         del inventory[pos]
 
                         if sbobs:
                             mess("The stone breaks the Stramonium")
                             mess("Out comes a litte seed...")
-                            objects.append([x,y,OBJ_STRAMONIUM_SEED])
+                            objects.append(Item(OBJ_STRAMONIUM_SEED,x,y))
                 else: 
                     pos = it
                     mess("You drop the "+object_names(equip[pos][0]))
                     if lvl[x][y] == 8:
                         mess("...it is consumed by the lava")
                     else:
-                        objects.append([x,y]+equip[pos][0][2:])
+                        equip[pos][0].position(x,y)
+                        
+                        objects.append(equip[pos][0])
                         del equip[pos]
             return turn
     
@@ -2532,7 +2639,7 @@ def dopturn(cmd):
                     elif o[2] == OBJ_PLANT:
                         if additem(o):
                             mess("You pick up a "+object_names(o))
-                            if o[3] == 1:
+                            if o.adjective == 1:
                                 gloves=0
                                 for k in equip:
                                     if k[0][2]==OBJ_GLOVES:
@@ -2650,7 +2757,7 @@ def dopturn(cmd):
             while True:
                 for i in range(0,len(inventory)):
                     s = object_names(inventory[i])[:INVCLIP]
-                    back.addstr(7+i,LW_W+4, s,color_pair(ssheet[inventory[i][2]][1]))
+                    back.addstr(7+i,LW_W+4, s, color_pair(inventory[i].colour()))
                 s = object_names(inventory[n])[:INVCLIP]
                 back.addstr(7+n,LW_W+4, s,color_pair(6))
             
@@ -2708,7 +2815,7 @@ def dopturn(cmd):
                     flush_main()
                     getchar()
                 elif idd == OBJ_PAPER:
-                    data = clues[inventory[touse][3]]                   
+                    data = clues[inventory[touse].data]                   
                     yyy=2
                     for l in data:
                         stdscr.addstr(yyy,2,l)
@@ -2731,7 +2838,7 @@ def dopturn(cmd):
                     del inventory[touse]
                 elif idd == OBJ_CARCASS:
                     if randint(0,1)==0:
-                        s=inventory[touse][3]*2 + randint(0,2)
+                        s=inventory[touse].original*2 + randint(0,2)
                         mess("You eat the carcass (+"+str(s)+" HP)",2)
                         hp = min(mxhp,hp+s)
                     else:
@@ -2744,21 +2851,22 @@ def dopturn(cmd):
                     mana = min(mana+b,MAXMANA)
                     del inventory[touse]
                 elif idd == OBJ_GNOME:
-                    l = inventory[touse][3].loot 
+                    l = inventory[touse].brain.loot 
                     if l == -1:
                         mess("The gnome is not carrying anything")
-                    elif l[2] == OBJ_GOLD:
+                    elif l.ID == OBJ_GOLD:
                         mess("You get back your money")
-                        gold += l[3]
+                        gold += l.amount
                     else:
                         mess("You shake the gnome and a "+object_names(l) +" comes out.")
-                        objects.append([x,y] + l[2:])
+                        inventory[touse].brain.loot.position(x,y)
+                        objects.append(inventory[touse].brain.loot)
 
-                    inventory[touse][3].loot = -1
+                    inventory[touse].brain.loot = -1
 
                 elif idd == OBJ_PLANT:
-                    species = inventory[touse][4]
-                    adj = inventory[touse][3]
+                    species = inventory[touse].species
+                    adj = inventory[touse].adjective
                     bonus = 1
                     if adj == 5:
                         bonus = 4
@@ -2806,9 +2914,9 @@ def dopturn(cmd):
                     count = 0
                     for p in inventory:
                         if p[2] == OBJ_PLANT:
-                            if p[5] == 0:
+                            if p.identified == 0:
                                 count += 1
-                            p[5] = 1
+                            p.identified = 1
                     mess(str(count)+" plants were identified.")
                     del inventory[touse]
                 elif idd == OBJ_BOOK_TELEPORTATION:
@@ -2818,8 +2926,8 @@ def dopturn(cmd):
                     spellcast(SPELL_FIRE)
                     del inventory[touse]
                 elif idd == OBJ_BOOK_THUNDER:
-                                        spellcast(SPELL_THUNDER)
-                                        del inventory[touse]
+                    spellcast(SPELL_THUNDER)
+                    del inventory[touse]
 
                 elif idd == OBJ_BOOK_GEOGRAPHY:
                     exx=-1
@@ -2849,6 +2957,12 @@ def dopturn(cmd):
                 elif idd == OBJ_BOOK_TRANSMIGRATION:
                     spellcast(SPELL_TRANSMIGRATION)
                     del inventory[touse]                        
+                elif idd == OBJ_BOOK_CLAIRVOYANCE:
+                    spellcast(SPELL_WATCH)
+                    del inventory[touse]
+                elif idd == OBJ_BOOK_WINTER:
+                    spellcast(SPELL_WINTER)
+                    del inventory[touse]
 
                 elif idd == OBJ_SULFUR:
                     if addburn(inventory[touse]):
@@ -3132,11 +3246,11 @@ def do_step():
                             bott = min(randint(1,3),gold)
                             gold -= bott
                             mess("A gnome strips you of your gold!",3)
-                            e[5].loot = [0,0,OBJ_GOLD,bott]
+                            e[4].loot = Loot(bott)
                         elif len(inventory)>0:
                             ggh = randint(0,len(inventory)-1)
                             mess("A gnome strips you of your "+object_names(inventory[ggh]),3)
-                            e[5].loot = inventory[ggh]
+                            e[4].loot = inventory[ggh]
                             del inventory[ggh]
                         else:
                             mess("You have nothing to get stolen (that's sad)",3)
@@ -3613,30 +3727,30 @@ while alive:
         #add 15 gold pieces
         for c in range(0,15):
             (gx,gy) = findfree()
-            objects.append([gx,gy,OBJ_GOLD])
+            objects.append(Item(OBJ_GOLD,gx,gy))
 
         #add 0-2 mana drops
         for c in range(0,2):
             (gx,gy) = findfree()
-            objects.append([gx,gy,OBJ_DROP])
+            objects.append(Item(OBJ_DROP,gx,gy))
 
         #add 1 emerald
         for c in range(0,1):
             (gx,gy) = findfree()
-            objects.append([gx,gy,OBJ_EMERALD])
+            objects.append(Item(OBJ_EMERALD,gx,gy))
     
         #add food
         for c in range(0,randint(0,2)):
             (gx,gy) = findfree()
-            objects.append([gx,gy,OBJ_BREAD])
+            objects.append(Item(OBJ_BREAD,gx,gy))
         if stage > 5:
             for c in range(0,randint(0,1+min(1,stage//14))):
                 (gx,gy) = findfree()
-                objects.append([gx,gy,OBJ_GOULASH])
+                objects.append(Item(OBJ_GOULASH,gx,gy))
         if stage > 27:
             for c in range(0,randint(0,2)):
                 (gx,gy) = findfree()
-                objects.append([gx,gy,OBJ_PASTA])
+                objects.append(Item(OBJ_PASTA,gx,gy))
     
         #add plants
         if stage < 25:
@@ -3649,31 +3763,38 @@ while alive:
             while not isfree(lvl[gx][gy]):
                 gx = randint(0,LV_W-1)
                 gy = randint(0,LV_H-1)
-            objects.append([gx,gy]+ranplant())
+            s = ranplant()
+            s.position(gx,gy)
+            objects.append(s)
 
         #add books
-        for c in range(0,randint(0,4)):
+        for c in range(0,randint(0,8)):
             (gx,gy) = findfree()
-            objects.append([gx,gy,randint(100,MAXBOOK)])
+            objects.append(Item(randint(100,MAXBOOK),gx,gy))
 
         #add handboooks
         if randint(0,7) == 0:
             (gx,gy) = findfree()
-            objects.append([gx,gy,OBJ_HANDBOOK])
+            objects.append(Item(OBJ_HANDBOOK,gx,gy))
 
         #add armour
         for c in range(0,randint(0,3+stage//3)):
             (gx,gy) = findfree()
-            objects.append([gx,gy,randint(200,MAXARMOUR)])
+            objects.append(Item(randint(200,MAXARMOUR),gx,gy))
 
         for c in range(0,randint(0,stage//25)):
             (gx,gy) = findfree()
-            objects.append([gx,gy,randint(250,MAXGOLDEN)])
+            objects.append(Item(randint(250,MAXGOLDEN),gx,gy))
 
         #add stone
         if randint(0,4)<=1:
             (gx,gy) = findfree()
-            objects.append([gx,gy,OBJ_STONE])
+            objects.append(Item(OBJ_STONE,gx,gy))
+
+        #add sulfur
+        if stage in range(3,8):
+            (gx,gy) = findfree()
+            objects.append(Item(OBJ_SULFUR,gx,gy))
 
         #add mobs
         for c in range(0,15+stage//5):
@@ -3701,7 +3822,7 @@ while alive:
         for c in range(0,randint(0,2)//2 + DEBUG * 0):
             (gx,gy) = findfree()
             t = choice(list(set(ssheet) - set([OBJ_GOLD,OBJ_PUKE,OBJ_EMERALD,OBJ_DROP,OBJ_CARCASS,OBJ_PLANT,OBJ_CHESTMONSTER,OBJ_GNOME])))  
-            objects.append([gx,gy,OBJ_CHESTMONSTER,0,t])
+            objects.append(Chestmonster(t,gx,gy))
 
         #add succubus
         if (stage in range(18,21)):
@@ -3724,16 +3845,16 @@ while alive:
         if stage > 2:
             for i in range(0,LV_W):
                 for j in range(0,LV_H):
-                    gnomedens = (dtype==0)*400 + (dtype==1)*50
+                    gnomedens = (dtype==0)*800 + (dtype==1)*100
                     if lvl[i][j] == 11 and randint(0,gnomedens) == 0:
-                        entities.append([i,j]+bosses["Gnome"]+[gnomeBrain(),gnomeStuff()])
+                        entities.append([i,j]+bosses["Gnome"]+[gnomeBrain()])
 
 
         #add clues
         for c in range(0,0):
             if randint(0,16)==0:
                 (gx,gy) = findfree()
-                objects.append([gx,gy,OBJ_PAPER,randint(0,len(clues)-1)])
+                objects.append(Clue(randint(0,len(clues)-1),gx,gy))
 
         #position player
     

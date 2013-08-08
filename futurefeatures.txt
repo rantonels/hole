@@ -13,6 +13,7 @@ THINGS I WILL IMPLEMENT:
 * alchemy/metals/potions system
 * show exit position if already seen (prolly won't do this)
 * examine object in inventory command
+* shallow water, water enemies, electrocuting, rotten water, grass, foliage, fires
 
 
 

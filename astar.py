@@ -81,11 +81,11 @@ def pathfind(mapfunction,start,endp):
         log("current: "+str(current))
 
         #move the current tile to the closed set
-        openSet.remove(o)
-        closedSet.add(o)
+        openSet.remove(current)
+        closedSet.add(current)
 
         #find the von neumann neighbourhood
-        nbd = o.nbd()
+        nbd = current.nbd()
         log("nbd: "+str(nbd))
         #work on the neighbours
         for n in nbd:
