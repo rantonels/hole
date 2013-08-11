@@ -5,7 +5,6 @@ THINGS I WILL IMPLEMENT:
 * female gnomes in gnome village
 * fill last level with mobs
 * wrapper for exceptions (no more scrambled terminal windows!)
-* smart fairies
 * bows and arrows and throwing
 * abilities (sword, bow, magic)
 * race (even mixed)
@@ -25,7 +24,7 @@ THINGS FORMERLY IN THE LIST ABOVE
 * light (limited shelf-life torches etc...) DONE!
 * show enemies details KINDA!
 * explore/examine command DONE!
-
+* smart fairies DONE!
 
 
 GRAPHICAL/STANDALONE MODE:

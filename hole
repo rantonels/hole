@@ -292,6 +292,14 @@ WALLS = [
     (u'║',1),(u'╔',1),(u'║',1),(u'╠',1),
     (u'╗',1),(u'╦',1),(u'╣',1),(u'╬',1) ]
 
+BLACK = 0
+RED = 1
+GREEN = 2
+YELLOW = 3
+BLUE = 4
+MAGENTA = 5
+CYAN = 6
+WHITE = 7
 
 
 #DATA
@@ -305,8 +313,33 @@ DCLUT = [
 [ 0,0,1,1]
 ]
 
+NLUT = [
+(1,0),
+(0,1),
+(-1,0),
+(0,-1)
+]
 
 
+ITINFOBACK = '''
++----------------+-----------------------+
+|                |                       |
+|                |                       |
+|                |                       |
+|                |                       |
+|                |                       |
+|                | --------------------- |
+|     \  /       |                       |
+|      \/        | #                     |
+|      /\        |                       |
+|     /  \       | #                     |
+|                |                       |
+|                | #                     |
+|                |                       |
+|                | #                     |
+|                |                       |
+|                |-----------------------+
++----------------+                        '''[1:].split('\n')
 
 
 
@@ -325,13 +358,25 @@ creditsred = creditsdata[24:49]
 creditsyellow = creditsdata[49:75]
 cfile.close()
 
-def color_pair(n):
+def color_pair_num(n):
     global GRAPHIC
     if GRAPHIC:
         return n
     else:
         return curses.color_pair(n)
 
+def color_pair_fb(f,b):
+    global GRAPHIC
+    if GRAPHIC:
+        return 0
+    else:
+        return curses.color_pair(STPAIR + 8*b + f)
+
+def color_pair(cc):
+    if isinstance(cc,tuple):
+        return color_pair_fb(cc[0],cc[1])
+    else:
+        return color_pair_num(cc)
 
 def addstrtrans(screen,y,x,string,col = color_pair(0)):
     for i in range(0,len(string)):
@@ -343,6 +388,37 @@ def isfree(num):
 def isnonsolid(num):
     return (num in [0,8])
 
+def hall_color(color):
+    global curss
+    if curss[CURS_HALLUCINATION] and randint(0,4)<4:
+        return color_pair_fb(randint(0,7),randint(0,7))
+    else:
+        return color
+
+def hall_char(char):
+    global curss
+    if curss[CURS_HALLUCINATION] and randint(0,4)<4:
+        if GRAPHIC:
+            return chr(randint(0,255))
+        else:
+            return chr(randint(32,126))
+    else:
+        return char
+
+def hall_floor(char):
+    global curss
+    if curss[CURS_HALLUCINATION] and randint(0,20)==0:
+        return chr(randint(32,126))
+    else:
+        return char
+
+def hall_floor_color(color):
+    global curss
+    if curss[CURS_HALLUCINATION] and randint(0,20)==0:
+        return color_pair_fb(randint(0,7),randint(0,7))
+    else:
+        return color
+   
 
 class Item:
     def __init__(self, oid, x=0, y=0):
@@ -618,7 +694,8 @@ if UNICODE:
                                                #atk            #dfn                #hp         #exp
 mobs = [[mobsalphabet[i] , animalsymbols[i],  2 + max(i,-25+3*i), max(1,i-1,-24+3*i), 4+2*(i+i*i//4),  i//2+1] for i in range(0,len(mobsalphabet))]
 
-freezinganimals = [x + ord('a') for x in ( [8,13,15,16,18,21,23,25] + [0,1]*DEBUG) ] + ['I']
+freezinganimals =      [chr(x + ord('a')) for x in ( [8,13,15,16,18,21,23,25] + [0,1]*DEBUG) ] + ['I']
+hallucinatinganimals = [chr(x + ord('a')) for x in ( [5,11,12,18,23]          + [0,1]*DEBUG) ] + ['F']
 
 bosses = {
     "Dragon":   ["Dragon",  'D', 150, 80, 1000,300],
@@ -713,7 +790,7 @@ converter2 = {
 #TILESET and SPRITESHEET
 tset = {
 0: (' ',0), #walkable empty tile
-1: ('#',1), #wall
+1: ('#',(BLACK,WHITE)), #wall
 2: (' ',0), #unexplored/outside
 3: ('=',5), #door
 4: ('v',0), #exit
@@ -725,10 +802,13 @@ tset = {
 10: ('.',0),    #emerald walkway (not activated)
 11: ('$',1),    #dirt
 12: ('%',5),    #wood
+13: ('~',(CYAN),(BLACK)),   #shallow water
 
 100: ('~',6),   #water
 101: ('@',10)   #Oskar
 }
+
+luminescent = [8]
 
 if UNICODE:
     tset[100] = (u'♒',6)
@@ -753,7 +833,7 @@ ssheet = {
 0: ('*',3),
 1: ('Y',2),
 2: ('0',3),
-3: ('*',8),
+3: ('*',(CYAN,BLACK)),
 4: ('*',2),
 5: ('Q',3),
 6: ('&',2),
@@ -1102,20 +1182,23 @@ def spellcast(n):
 CURS_ICE = 0
 CURS_POISON = 1
 CURS_LOVE = 2
-MAXCURS = 2
+CURS_HALLUCINATION = 3
+MAXCURS = 3
 
 curses_names = {
     CURS_ICE:"Frozen",
     CURS_POISON:"Poisoned",
-    CURS_LOVE:"In Love"
+    CURS_LOVE:"In Love",
+    CURS_HALLUCINATION:"Hallucinating"
 }
 
-curses_initial = ["F","P","L"]
+curses_initial = ["F","P","L","H"]
 
 curses_colors = {
     CURS_ICE:8,
     CURS_POISON:2,
-    CURS_LOVE:4
+    CURS_LOVE:4,
+    CURS_HALLUCINATION:(MAGENTA,BLACK)
 }
     
 catalogue = [
@@ -1147,6 +1230,7 @@ attribute_strings = {
 def exprofile(r):
     return int(r*4.9 + r*r*4.9//16)
 
+
 if havecurses:
     curses.init_pair(0, curses.COLOR_WHITE,     curses.COLOR_BLACK)
     curses.init_pair(1, curses.COLOR_BLACK,     curses.COLOR_WHITE)     #1 black on white
@@ -1169,6 +1253,12 @@ if havecurses:
     curses.init_pair(18,curses.COLOR_CYAN,  curses.COLOR_BLACK) #cyan
     curses.init_pair(19,curses.COLOR_BLACK,     curses.COLOR_BLUE)      #black on blue
 
+    STPAIR = 20
+
+    for b in range(0,8):
+        for f in range(0,8):
+            curses.init_pair(STPAIR + 8*b + f, f, b)
+
 
 C_WHITE = color_pair(1)
 C_WHITERED = color_pair(9)
@@ -1190,6 +1280,7 @@ mxhp=100
 hp=100
 mana=0
 manacount=0
+speed = DEBUG*50
 gold=0
 rank=1
 gems=[False]*50
@@ -1198,10 +1289,12 @@ exp=0
 waterfrozen=False
 arrows = 10
 torch = [ [Item(-1),2000] ]
+#if DEBUG:
+    #    torch = []
 curss = [0]*(MAXCURS+1)
 spellsprog = [1,0,0] 
 if DEBUG:
-   curss = [10,0,0]
+   curss[0:4] = [0,0,0,0]
 orientation = choice([ [1,2] , [2,1] , [1,1] ])
 ID = randint(0,999999999)
 
@@ -1210,7 +1303,7 @@ specialending = -1
 
 name="ERROR"
 dungeonname = choice ( [ "Ala", "Seth", "More", "Dath", "Kathra"]) + choice ( [ "go", "na" , "ka", "gu", "ni"]) + choice ( [ "r", "r", "dor"])
-DEBUG_CHEST = [ Carcass(4) , Item(OBJ_BOOK_WINTER) , Chestmonster(OBJ_BOOK_FIRE,0) , Chestmonster(OBJ_BOOK_FIRE,1) ] 
+DEBUG_CHEST = [ Carcass(4) , Item(OBJ_BOOK_WINTER) , Chestmonster(OBJ_BOOK_FIRE,0) , Chestmonster(OBJ_BOOK_FIRE,1) , Item(OBJ_SULFUR), Item(OBJ_HANDBOOK) ] 
 inventory = [ Item(OBJ_BREAD) , Item(OBJ_LETTER) ] #+ DEBUG_CHEST 
 if DEBUG: inventory+= DEBUG_CHEST
 equip = [ ]
@@ -1379,22 +1472,25 @@ objects = []
 entities = []
 
 burndata = {
-    OBJ_SULFUR:1000,
-    OBJ_WAND:50
+    OBJ_SULFUR:500,
+    OBJ_WAND:12,
+    OBJ_HANDBOOK:30,
+    OBJ_PAPER:15,
+    OBJ_PLANT:14, 
 }
 
 for i in range(100,200): #books
-    burndata[i] = 100
+    burndata[i] = 50
 
 def addburn(o):
     if not o.ID in burndata:
         mess("You can't burn that.")
         return False
-    if len(torch)==0 or o.sameas(torch[-1][0]):
+    if len(torch)==0 or not o.sameas(torch[-1][0]):
        torch.append([o,burndata[o.ID]])
     else:
        torch[-1][1] += burndata[o.ID]
-    mess("You use the "+object_names(o)+" to fuel the torch")
+    mess("You burn the "+object_names(o)+" to fuel the torch")
     return True
 
 throwdata = {
@@ -1508,7 +1604,7 @@ def hite(e,force):
 
 
 def givexp(amt):
-    global exp, rank, atk, dfn, mxhp, hp
+    global exp, rank, atk, dfn, mxhp, hp, speed
     exp += amt
     lepl = False
     while(exp >= exprofile(rank)):
@@ -1519,6 +1615,7 @@ def givexp(amt):
         oldhp = mxhp
         mxhp+=3 + rank**2//17
         hp = (hp*mxhp)//oldhp
+        speed+=1
         lepl=True
     if(lepl):
         mess("Welcome to level "+str(rank))
@@ -1693,6 +1790,15 @@ dungeon =  ["###########################################################",
             "#.........................................................#",
             "###########################################################"]
 
+def lightsource(cx,cy):
+    global lvl,objects,entities,LV_W,LV_H
+    if not ((cx in range(0,LV_W)) and (cy in range(0,LV_H))):
+        return False
+    if lvl[cx][cy] in luminescent:
+        return True
+    
+lightradius = 0
+
 class Map(object):
     # Multipliers for transforming coordinates to other octants:
     mult = [
@@ -1719,9 +1825,34 @@ class Map(object):
                 or x >= self.width or y >= self.height
                 or (not isnonsolid(lvl[x][y]))
                     )
-    def lit(self, cx, cy):
+    def visible(self, cx, cy):
         global fow,x,y,lvl,clairvoying,attributes
 
+        
+        return self.light[cy][cx] == self.flag
+
+    def litt(self,cx,cy):
+        global lvl,objects,entities,x,y,NLUT,lightradius
+        ret = False
+
+       
+
+        if (cx-x)**2 + (cy-y)**2 <= (lightradius**2)+1:
+            return True
+
+        if lightsource(cx,cy):
+            return True
+
+        nbd = [ (cx + n[0],cy + n[1]) for n in NLUT]
+        for n in nbd:
+            if lightsource(n[0],n[1]):
+                return True
+
+
+        return False
+
+    def lit(self, cx, cy):
+        global fow,x,y,lvl,clairvoying,attributes
         if clairvoying == 1:
          if (cx-x)**2 + (cy-y)**2 <= (20)**2:
              return True
@@ -1730,7 +1861,10 @@ class Map(object):
         elif clairvoying >= 2:
             return True
 
-        return self.light[cy][cx] == self.flag
+
+        return  self.visible(cx,cy) and self.litt(cx,cy)
+
+
     def set_lit(self, x, y):
         if 0 <= x < self.width and 0 <= y < self.height:
             self.light[y][x] = self.flag
@@ -1998,7 +2132,7 @@ name = stdscr.getstr(14,6,10)
 curses.noecho()'''
 
 def draw():
-        global lvl,x,y,entities,objects,fow,fog,tset,ssheet,BXCHARS,mana,hp,mxhp,gold,gems,curss,inventory,equip,stage,rank,atk,dfn,attributes, clairvoying
+        global lvl,x,y,entities,objects,fow,fog,tset,ssheet,BXCHARS,mana,hp,mxhp,gold,gems,curss,inventory,equip,stage,rank,atk,dfn,attributes, clairvoying, lightradius, turns
 
         #DISPLAY / DRAW
 
@@ -2012,10 +2146,13 @@ def draw():
 #       for i in range(x-1,x+2):
 #           for j in range(y-1,y+2):
 #               fow[i][j] = 2'''
+
+        fovradius = 11 + attributes[ATTR_HAWK_EYE]*5
+
         if len(torch)>0:
-            fovradius = 11 + attributes[ATTR_HAWK_EYE]*5
+            lightradius = 13
         else:
-            fovradius = 2
+            lightradius = 1
 
         fovBrain.do_fov(x,y,fovradius)
         
@@ -2028,32 +2165,33 @@ def draw():
 
 
         mypad.erase()
-        for i in range(max(0,x-LW_W),min(x+LW_W,LV_W)):
-            for j in range(max(0,y-LW_H),min(y+LW_H,LV_H-1)):
+        for i in range(max(0,camx+1),min(1+camx+LW_W,LV_W)):
+            for j in range(max(0,camy+1),min(1+camy+LW_H,LV_H-1)):
                 if not fag(i,j):
                     if fovBrain.lit(i,j):
                         fog[i][j] = 1
                 if fag(i,j):
-                    tilecol = color_pair(tset[lvl[i][j]][1])
+                    sbd = tset[lvl[i][j]][1]
+                    tilecol = color_pair(sbd)
                     if iswall(i,j) and fovBrain.lit(i,j) == False: #blue outside fov
                         if lvl[i][j] in [3,4,7]: #special tiles for blue-on-black
                             cccc = color_pair(8)
                         else: #else, black on blue
                             cccc = color_pair(19)
-                        mypad.addch(j,i,tset[lvl[i][j]][0],cccc)
+                        mypad.addch(j,i,hall_char(tset[lvl[i][j]][0]),hall_floor_color(cccc))
                     
                     elif visibility_dots and lvl[i][j] == 0:
                             if fovBrain.lit(i,j):
-                                mypad.addstr(j,i,visdotchar,color_pair(8))
+                                mypad.addstr(j,i,hall_floor(visdotchar),hall_floor_color(color_pair(8)))
                     elif UNICODE and lvl[i][j] == 1:
                         total = iswall(i+1,j) + 2*iswall(i,j-1) + 4*iswall(i-1,j) + 8*iswall(i,j+1)
                         mypad.addstr(j,i,WALLS[total][0].encode('utf-8'),color_pair(WALLS[total][1]))
                     else:
                         if fovBrain.lit(i,j):
                             if lvl[i][j] == 100 and waterfrozen:    
-                                mypad.addch(j,i,'/' , color_pair(15))
+                                mypad.addch(j,i,hall_char('/') , hall_color(color_pair(15)))
                             else:
-                                mypad.addstr(j,i,tset[lvl[i][j]][0] , tilecol  )
+                                mypad.addstr(j,i,hall_char(tset[lvl[i][j]][0]) , hall_color(tilecol)  )
                                 
                 else:
                     mypad.addch(j,i,' ',color_pair(0))
@@ -2069,7 +2207,7 @@ def draw():
 #                   elif o[2] == OBJ_CARCASS:
 #                       mypad.addch(o[1],o[0],chr(ord('a')+o[3]),color_pair(0))
 #                   else:
-                        mypad.addstr(o.y,o.x,o.sprite(), color_pair(o.colour()))  
+                        mypad.addstr(o.y,o.x,hall_char(o.sprite()), hall_color(color_pair(o.colour())))  
         
         #draw entities
         for e in entities:
@@ -2082,14 +2220,14 @@ def draw():
                             continue
                         c = color_pair(2)
                     else:
-                        c=color_pair(4) 
-                mypad.addstr(e[1],e[0],e[3], c)
+                        c = color_pair_fb(RED,BLACK) 
+                mypad.addstr(e[1],e[0],hall_char(e[3]), hall_color(c))
                 if e[2] == "Dragon":
                     if e[8].particles == -1:
-                        mypad.addch(e[1]+e[8].by,e[0]+e[8].bx,'~',color_pair(0))
+                        mypad.addch(e[1]+e[8].by,e[0]+e[8].bx,hall_char('~'),hall_color(color_pair(0)))
                     elif e[8].particles > 0:
                         for i in range(1,1+e[8].particles):
-                            mypad.addch(e[1]+e[8].by*i,e[0]+e[8].bx*i,'*',color_pair(4))
+                            mypad.addch(e[1]+e[8].by*i,e[0]+e[8].bx*i,hall_char('*'),hall_color(color_pair(4)))
 
         #draw character
         if lvl[x][y] == 8:
@@ -2101,7 +2239,7 @@ def draw():
         elif curss[CURS_ICE]>0:
             c=color_pair(8)
         else:
-            c=color_pair(0) 
+            c=color_pair_fb(WHITE,BLACK) 
 
         mypad.addch(y,x,'@',c)
 
@@ -2139,6 +2277,8 @@ def draw():
             ct+=1
 
         back.addstr(LW_H+2,7,"*FLOOR "+str(stage)+" - "+dtypenames[dtype] +"*")
+        if speed > 0:
+            back.addstr(LW_H+2,LW_W-10, "%s MOVES"%turns,color_pair_fb(WHITE,BLACK))
 
         for i in range(LW_W+3,LW_W+3+22):
             back.addch(0,i,BXCHARS[5])
@@ -2175,7 +2315,7 @@ def draw():
         for i in range(0,len(equip)):
             back.addstr(3+i,LW_W+4, object_names(equip[i][0])[:INVCLIP])
 
-        back.addstr(LW_H+4,1,"ATK "+str(atk)+" DEF "+str(dfn))
+        back.addstr(LW_H+4,1,"ATK %s DEF %s SPD %s"%(atk,dfn,speed))
 
         if waterlvl >= WATSTEPS:
             back.addstr(LW_H+4,15, "Water to floor "+str(waterlvl//WATSTEPS))
@@ -2194,7 +2334,20 @@ def draw():
         if len(tstr)>40:
             tstr = "[...] "+tstr[-35:]
 
-        back.addstr(LW_H+12,1, "Torch: "+tstr)
+        back.addstr(LW_H+12,1,"Torch: ")
+
+        if len(torch) == 0:
+            back.addstr(LW_H+12, 8, "OFF")
+        else:
+            xox = 8
+            for f in torch:
+                if f[0].ID == -1:
+                    back.addstr(LW_H+12,xox,"Oil",color_pair_fb(WHITE,BLACK))
+                    xox += 4
+                else:
+                    back.addch(LW_H+12,xox,f[0].sprite(),color_pair(f[0].colour()))
+                    xox += 2
+            back.addstr(LW_H+12,xox,"(%s)"%sum([ f[1] for f in torch  ]) , color_pair_fb(WHITE,BLACK))
 
         blitback()
         blitlvl()
@@ -2376,6 +2529,9 @@ def dopturn(cmd):
 
         #x button examine
         if cmd == ord('x'):
+            if curss[CURS_HALLUCINATION]>0:
+                mess("You are way too high for that.",(YELLOW,BLACK))
+                return False
             cursor = [x,y]
             showpath = 0
             vobj = [k for k in entities + objects if (fovBrain.lit(k[0],k[1]) or ([k[0],k[1]] == [x,y])) ]
@@ -2749,20 +2905,31 @@ def dopturn(cmd):
     
         # use object (0-9)
         lawlz = False
+        burnit = False
+        printinfo = False
 #       if cmd  in range(ord('0'),ord('9')+1):
 #           lawlz = True    
 #           touse = cmd-ord('0')
         if cmd == ord('u') and len(inventory)>0:
             n = 0
             while True:
+
+                blitlvl()
                 for i in range(0,len(inventory)):
                     s = object_names(inventory[i])[:INVCLIP]
                     back.addstr(7+i,LW_W+4, s, color_pair(inventory[i].colour()))
                 s = object_names(inventory[n])[:INVCLIP]
                 back.addstr(7+n,LW_W+4, s,color_pair(6))
-            
+
+                if printinfo:
+                    for i in range(0,len(ITINFOBACK)):
+                        back.addstr(2+i,2,ITINFOBACK[i],color_pair_fb(WHITE,BLACK))
+ 
+
+                back.addstr(LW_H,2,  "[Enter] use/equip - [b] burn for torch",color_pair_fb(YELLOW,BLACK))
+                back.addstr(LW_H+1,2,"[i] item details",color_pair_fb(YELLOW,BLACK)) 
+           
                 blitback()
-                blitlvl()
                 flush_main()
                 s = getchar()
 
@@ -2774,10 +2941,23 @@ def dopturn(cmd):
                     lawlz = True
                     touse = n
                     break
+                elif s == ord('b'):
+                    burnit = True
+                    touse = n
+                    break
+                elif s == ord('i'):
+                    printinfo = not printinfo
                 else:
                     return False
                     break
     
+        if burnit:
+            if addburn(inventory[touse]):
+                        del inventory[touse]
+                        turn = True
+            else:
+                        turn = False
+
         if lawlz:
             turn = True
             if touse in range(0,len(inventory)):
@@ -2964,13 +3144,8 @@ def dopturn(cmd):
                     spellcast(SPELL_WINTER)
                     del inventory[touse]
 
-                elif idd == OBJ_SULFUR:
-                    if addburn(inventory[touse]):
-                        del inventory[touse]
-                        turn = True
-                    else:
-                        turn = False
-
+#                elif idd == OBJ_SULFUR:
+                   
 
                 elif idd == OBJ_HANDBOOK:
                 
@@ -3096,14 +3271,14 @@ def dopturn(cmd):
             n = exp*10//exprofile(rank)  
             stdscr.addstr(6,15," "*n,color_pair(6))
 
-            stdscr.addstr(10,15,"SPELLBOOK")
+            stdscr.addstr(8,15,"SPELLBOOK",color_pair_fb(MAGENTA,BLACK))
             for i in range(0,3):
                 for j in range(0,len(spellbook[i])):
                     if j < min(spellsprog[i],len(spellbook[i])):
                         ccceee = color_pair(0)
                     else:
                         ccceee = color_pair(4)
-                    stdscr.addstr(12+j,15 + 4*i, spellbook[i][j][2][:3].upper(),ccceee)
+                    stdscr.addstr(10+j,15 + 4*i, spellbook[i][j][2][:3].upper(),ccceee)
     
             '''stdscr.addstr(4,30, "ORIENTATION")
     
@@ -3142,11 +3317,11 @@ def dopturn(cmd):
             
 
 
-            stdscr.addstr(18,1,"ATTRIBUTES")
+            stdscr.addstr(15,1,"ATTRIBUTES",color_pair_fb(CYAN,BLACK))
             u = 0
             for j in range(0,len(attributes)):
                 if attributes[j]:
-                    stdscr.addstr(20+u,1,attribute_strings[j][0])
+                    stdscr.addstr(17+u,1,attribute_strings[j][0])
                     u+=1
 
             flush_main()
@@ -3204,10 +3379,8 @@ def dopturn(cmd):
 
         return turn
 
-
-def do_step():
-        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,waterfrozen,waterlvl,manacount
-
+def do_timestep():
+        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,waterfrozen,waterlvl,manacount,hallucinatinganimals,freezinganimals
         #move wotah
         if not waterfrozen:
             waterlvl+=1
@@ -3233,7 +3406,32 @@ def do_step():
     
         #move entities
         for e in entities:
-            if e[2] == 'Gnome': #gnomes (no attack)
+            if e[2] == 'Fairy':
+                if randint(0,e[6])==0:
+                    if (abs(x-e[0])+abs(y-e[1])) < 15:
+                            mess("The Fairy disappears before your eyes")
+                    (sx,sy)=findfree()
+                    e[0] = sx
+                    e[1] = sy
+                for c in range(0,2):        #walk twice
+                            ex = e[0]
+                            ey = e[1]
+                            if cansee(x,y,ex,ey):
+                                    factx=sgn(ex-x)
+                                    facty=sgn(ey-y)
+                                    possible=[[ex,ey+facty],[ex+factx,ey]]
+                            else:
+                                    possible=[[ex,ey],[ex,ey],[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
+                            possiblec=possible
+                            for p in possiblec:
+                                if not iswalkable(p[0],p[1]):
+                                    possible.remove(p)
+                            if len(possible)>0:
+                                (nx,ny)=choice(possible)
+                            if iswalkable(nx,ny):
+                                (e[0],e[1])=(nx,ny)
+            
+            elif e[2] == 'Gnome': #gnomes (no attack)
                 s = e[4].status
                 if s == GN_HIDING:
                     if abs(e[0]-x)<15 and abs(e[1]-y)<15 and randint(0,3)==0 and cansee(e[0],e[1],x,y):
@@ -3388,14 +3586,7 @@ def do_step():
                     reps = 2
 
 
-                if e[2] == "Fairy":
-                    if randint(0,16)==0:
-                        if (abs(x-e[0])+abs(y-e[1])) < 15:
-                            mess("The Fairy disappears before your eyes")
-                        (sx,sy)=findfree()
-                        e[0] = sx
-                        e[1] = sy
-
+                
 
                 for lol in range(0,reps):
                     ex=e[0]
@@ -3412,6 +3603,10 @@ def do_step():
                                     if randint(0,10)==0:
                                         curss[CURS_ICE] = randint(5,10)
                                         mess("The "+e[2]+" has frozen you",4)
+                                if e[3] in hallucinatinganimals:
+                                    if randint(0,10)==0:
+                                        curss[CURS_HALLUCINATION] = randint(2,20)
+                                        mess("You start hallucinating",4)
                             else:
                                 mess("The "+e[2]+" misses.")
 
@@ -3419,6 +3614,8 @@ def do_step():
                                 if (not gender) and curss[CURS_LOVE] == 0:
                                     mess("You get in love with the Succubus")
                                 curss[CURS_LOVE] = 10
+
+                            
 
                             if (len(equip)>0) and (randint(0,30*(1+attributes[ATTR_STRONG_HANDS])) == 0):
                                 q = randint(0,len(equip)-1)
@@ -3454,7 +3651,44 @@ def do_step():
             manacount+=1
             if manacount%1000 == 0:
                 mana = min(mana+ 1 + mana//50,MAXMANA)
-    
+
+        #cure curses
+        if curss[CURS_ICE] == 1:
+            mess("You are unfrozen.",2)
+        for i in range(0,len(curss)):
+            curss[i]= max(0,curss[i]-1)
+
+        #consume torch
+        if len(torch)>0:
+            torch[-1][1] -= 1
+            if torch[-1][1] <= 0:
+                del torch[-1]
+            if len(torch) == 0:
+                mess("Your torch burns out. You are engulfed by darkness.",4)
+
+        #extend fog
+        
+        if False:
+            floodfill(x,y)
+            floodfill(x+1,y)
+            floodfill(x-1,y)
+            floodfill(x,y-1)
+            floodfill(x,y+1)
+        #for i in range(max(0,x-4),min(LV_W,x+4)):
+        #   for j in range(max(0,y-4),min(LV_H,y+4)):
+        #       fog[i][j] = 1
+        
+        
+        #check for death
+        if(hp<=0):
+            alive=False
+
+   
+
+def do_step():
+        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,waterfrozen,waterlvl,manacount
+
+   
         #checkobjcollision
         oc = objects
         for o in oc:
@@ -3489,36 +3723,6 @@ def do_step():
                 mess("You walk on lava (-"+str(dmg)+" HP)")
                 hitp(dmg,True)
 
-        #cure curses
-        if curss[CURS_ICE] == 1:
-            mess("You are unfrozen.",2)
-        for i in range(0,len(curss)):
-            curss[i]= max(0,curss[i]-1)
-
-        #consume torch
-        if len(torch)>0:
-            torch[-1][1] -= 1
-            if torch[-1][1] <= 0:
-                del torch[-1]
-            if len(torch) == 0:
-                mess("Your torch burns out. You are engulfed by darkness.",4)
-
-        #extend fog
-        
-        if False:
-            floodfill(x,y)
-            floodfill(x+1,y)
-            floodfill(x-1,y)
-            floodfill(x,y-1)
-            floodfill(x,y+1)
-        #for i in range(max(0,x-4),min(LV_W,x+4)):
-        #   for j in range(max(0,y-4),min(LV_H,y+4)):
-        #       fog[i][j] = 1
-        
-        
-        #check for death
-        if(hp<=0):
-            alive=False
 
 def do_prelim():
     global clairvoying
@@ -3814,7 +4018,7 @@ while alive:
             entities.append([gx,gy] + bosses["Dragon"] + [dragonBrain()])
 
         #add fairy
-        if (stage > 3) and randint(0,16)==0:
+        if DEBUG or (stage > 3) and randint(0,16)==0:
             (gx,gy) = findfree()
             entities.append([gx,gy]+bosses["Fairy"])
 
@@ -3916,26 +4120,36 @@ while alive:
     crawlin=True
     while alive and crawlin:
         
+        #available turns
+        turns = 1 + (randint(0,100)<speed)
 
-        #preliminaries
-        do_prelim()
+        for _ in range(turns):
+            #1 PLAYER TURN
+            do_prelim()
+            cango=False
+            while not cango:
+                draw()
+                flush_main()
+                cmd = getchar()
+                cango = dopturn(cmd)
+ 
+            turns-=1
+            do_step()
 
-        #1 PLAYER TURN
-        cango=False
-        while not cango:
-            draw()
-            flush_main()
-            cmd = getchar()
-            cango = dopturn(cmd)
+            #exit turn loop if dead or outside level
+            if not crawlin or not alive:
+                break
+
+            #camera
+            camx = min(max(0,x-LW_W//2),LV_W-LW_W-1)
+            camy = min(max(0,y-LW_H//2),LV_H-LW_H-2)
+
 
         #do step
-        do_step()
+        do_timestep()
 
             
     
-        #camera
-        camx = min(max(0,x-LW_W//2),LV_W-LW_W-1)
-        camy = min(max(0,y-LW_H//2),LV_H-LW_H-2)
     
     
 stdscr.clear()
