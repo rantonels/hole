@@ -8,6 +8,8 @@ class Tile:
         self.y = y
         self.g = g
         self.parent = parent
+        global end
+        self.h = ((abs(self.x-end[0]) + abs(self.y-end[1])))
 
     def __eq__(self,other):
         if other == None:
@@ -31,12 +33,8 @@ class Tile:
         return (self.x,self.y)
 
     def f(self):
-        return self.g + self.h()
-
-    def h(self):
-        global end
-        return ((abs(self.x-end[0]) + abs(self.y-end[1])))
-    
+        return self.g + self.h
+ 
     def nbd(self):
         global NLUT
         return [ Tile(self.x + n[0], self.y + n[1], self.g + 1, self) for n in NLUT]
