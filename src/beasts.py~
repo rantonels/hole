@@ -1,0 +1,673 @@
+#!/usr/bin/env python
+#coding: utf8
+
+# name / sprite / attack / defense / hp / exp
+
+import __builtin__
+UNICODE = __builtin__.UNICODE
+DEBUG   = __builtin__.DEBUG
+
+
+from random import *
+
+
+mobsalphabet = {
+0:"Ant",
+1:"Bee",
+2:"Chicken",
+3:"Dog",
+4:"Emu",
+5:"Frog",
+6:"Gerbil",
+7:"Hyena",
+8:"Impala",
+9:"Jackal",
+10:"Kangaroo",
+11:"Leech",
+12:"Moth",
+13:"Nabarlek",
+14:"Ostrich",
+15:"Penguin",
+16:"Quetzal",
+17:"Rabbit",
+18:"Squid",
+19:"Tiger",
+20:"Uakari",
+21:"Vulture",
+22:"Wolf",
+23:"Xanclomys",
+24:"Yak",
+25:"Zebra"}
+
+animalsymbols = [chr(ord('a')+i) for i in range(0,len(mobsalphabet))]
+if UNICODE:
+    animalsymbols[0] = u'¥'
+    animalsymbols[1] = u'ഴ'
+    animalsymbols[5] = u'ൠ'
+    animalsymbols[18] = u'ᴥ'
+    
+#don't add gerbil!
+
+freezinganimals =      [chr(x + ord('a')) for x in ( [8,13,15,16,18,21,23,25] + [0,1]*DEBUG) ] + ['I']
+hallucinatinganimals = [chr(x + ord('a')) for x in ( [5,11,12,18,23]          + [0,1]*DEBUG) ] + ['F']
+
+aswmap = {}
+
+def mobpathfun(sx,sy):
+    return (not isnonsolid(lvl[sx][sy]))
+
+class Brain:
+    def __init__(self,parent):
+        self.p = parent
+        self.initState()
+
+    def resetIdle(self):
+        self.p.resetIdle()
+
+    def initState(self):
+        pass
+
+    def doStep(self):
+        self.stateMachine()
+        self.doAction()
+
+    def stateMachine(self):
+        pass
+
+    def doAction(self):
+        pass
+
+    
+    def hitMessage(self):
+        pass
+
+    def deadMessage(self):
+        pass
+
+    def stateName(self):
+        return "NO STATE"
+
+
+    def wander(self):
+        ex = self.p.x
+        ey = self.p.y
+        possible=[[ex,ey],[ex,ey],[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
+        possiblec=possible
+        for p in possiblec:
+            if not iswalkable(p[0],p[1]):
+                possible.remove(p)
+        if len(possible)>0:
+            (nx,ny)=choice(possible)
+            if iswalkable(nx,ny):
+                (self.p.x,self.p.y)=(nx,ny)
+                self.resetIdle()
+
+    def goto(self,x,y):
+
+        '''ex = self.p.x
+        ey = self.p.y
+        factx=-sgn(ex-x)
+        facty=-sgn(ey-y)
+ 
+        possible=[[ex,ey+facty],[ex+factx,ey]]
+
+        possiblec=possible
+        for p in possiblec:
+            if not iswalkable(p[0],p[1]):
+                possible.remove(p)'''
+
+        p = astar.pathfind(mobpathfun,(self.p.x,self.p.y),(x,y),aswmap)
+        if p == -1:
+           self.wander()
+        elif len(p)>1:
+           (nx,ny) = p[-2]
+
+           if iswalkable(nx,ny):
+                    (self.p.x,self.p.y)=(nx,ny)
+                    self.resetIdle()
+
+    def fleeFrom(self,x,y):
+        ex = self.p.x
+        ey = self.p.y
+        factx=sgn(ex-x)
+        facty=sgn(ey-y)
+ 
+        possible=[[ex,ey+facty],[ex+factx,ey]]
+
+        possiblec=possible
+        for p in possiblec:
+            if not iswalkable(p[0],p[1]):
+                possible.remove(p)
+        if len(possible)>0:
+            (nx,ny)=choice(possible)
+            if iswalkable(nx,ny):
+                (self.p.x,self.p.y)=(nx,ny)
+                self.resetIdle()
+
+    def fleeAndDefend(self):
+        global x,y
+        ox = self.p.x
+        oy = self.p.y
+        self.fleeFrom(x,y)
+        if (ox,oy) == (self.p.x,self.p.y) and abs(self.p.x-x)+abs(self.p.y-y) <= 1:
+           self.attack()
+
+
+    def attack(self):
+        global curss, equip, attributes
+        led=hitp(self.p.atk)
+        e = self.p
+        if led>0:
+                            if randint(0,1) == 0:
+                                    mess("The "+e[2]+" hits you. (-"+str(led)+" HP)",4)
+                            else:
+                                    mess("The "+e[2]+" strikes you. (-"+str(led)+" HP)",4)
+                            if e[3] in freezinganimals:
+                                    if randint(0,10)==0:
+                                        curss[CURS_ICE] = randint(5,10)
+                                        mess("The "+e[2]+" has frozen you",4)
+                            if e[3] in hallucinatinganimals:
+                                    if randint(0,10)==0:
+                                        curss[CURS_HALLUCINATION] = randint(2,20)
+                                        mess("You start hallucinating",4)
+
+                            if (len(equip)>0) and (randint(0,30*(1+attributes[ATTR_STRONG_HANDS])) == 0):
+                                q = randint(0,len(equip)-1)
+                                mess("The "+e[2]+" has stripped you of your "+object_names(equip[q][0])+"!")
+                                del equip[q]
+
+                            if e[3] == 'S':
+                                if (not gender) and curss[CURS_LOVE] == 0:
+                                    mess("You get in love with the Succubus")
+                                curss[CURS_LOVE] = 10
+
+        else:
+           
+            mess("The "+e[2]+" misses.")
+
+                            
+                            
+    def pursuePlayer(self):
+        global x,y
+        if abs(self.p.x - x) + abs(self.p.y - y) <= 1:
+           self.attack()
+        else:
+           self.goto(x,y)
+
+                               
+
+
+
+class ZombieBrain(Brain):
+    def doAction(self):
+        global x,y
+        if (abs(self.p.x-x)+abs(self.p.y-y)) < 16 and cansee(x,y,self.p.x,self.p.y):
+           self.pursuePlayer()
+        else:
+           self.wander()
+    def stateName(self):
+        
+        if (abs(self.p.x-x)+abs(self.p.y-y)) < 16 and cansee(x,y,self.p.x,self.p.y):
+            return "Hunting"
+        else:
+            return "Wandering"
+
+DR_SLEEPING = 0
+DR_AWAKE = 1
+DR_ANGRY = 2
+
+DR_IDLE = 0
+DR_CHARGING = 1
+DR_FIRING = 2
+
+class DragonBrain(Brain):
+    def __init__(self,parent):
+        Brain.__init__(self,parent)
+        self.charge = DR_IDLE
+        self.bx = 0
+        self.by = 0
+        self.particles = 0
+
+    def initState(self):
+        self.status = randint(0,2)//2
+
+
+    def doStep(self):
+          ex = self.p.x
+          ey = self.p.y
+          if self.status == DR_AWAKE:
+              if cansee(x,y,ex,ey): #move once
+                     self.pursuePlayer()
+                     self.pursuePlayer()
+
+
+          elif self.status == DR_ANGRY and self.charge == DR_IDLE:
+
+
+
+              if abs(x-self.p.x) + abs(y-self.p.y) <= 2:  #start breathing
+                  if randint(0,1) == 0:
+                      self.bx=-sgn(self.p.x-x)
+                      self.by=-sgn(self.p.y-y)
+                      mess("The Dragon breathes in...")
+                      self.charge = DR_CHARGING
+                      self.particles = -1
+
+                  else:
+                      if abs(x-self.p.x) + abs(y-self.p.y) <= 1:    #attack physically
+                            self.attack()
+
+              else:
+                  for c in range(0,2):        #walk twice
+                      ex = self.p.x
+                      ey = self.p.y
+                      if cansee(x,y,ex,ey):
+                              factx=-sgn(ex-x)
+                              facty=-sgn(ey-y)
+                              possible=[[ex,ey+facty],[ex+factx,ey]]
+                      else:
+                              possible=[[ex,ey],[ex,ey],[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
+                      possiblec=possible
+                      for p in possiblec:
+                          if not iswalkable(p[0],p[1]):
+                              possible.remove(p)
+                      if len(possible)>0:
+                          (nx,ny)=choice(possible)
+                      if iswalkable(nx,ny):
+                          (self.p.x,self.p.y)=(nx,ny)
+
+          elif self.status == DR_ANGRY and self.charge == DR_CHARGING:
+              hit = False
+              self.particles = 0
+              for i in range(0,6):
+                  self.particles+=1
+                  if (self.p.x + i* self.bx == x) and (self.p.y + i*self.by == y):
+                      hit = True
+
+                  if not isnonsolid(lvl [ self.p.x + i* self.bx ] [self.p.y + i*self.by ] ):
+                      break
+
+              if hit:
+                  hitp(500,True)
+                  mess("The Dragon fries you (-500 HP)")
+              else:
+                      mess("The Dragon blows fire.")
+              self.charge = DR_FIRING
+              
+
+          elif self.status == DR_ANGRY and self.charge == DR_FIRING:
+              if randint(0,3) == 0:
+                  mess("The Dragon becomes calm.")
+                  self.status = DR_AWAKE
+                  self.charge = DR_IDLE
+              else:
+                  self.charge = DR_IDLE
+              self.particles = 0   
+
+    def hitMessage(self):
+        if self.status == DR_SLEEPING:
+            self.status = DR_ANGRY
+            mess("You awake and anger the Dragon.")
+        if self.status == DR_AWAKE:
+            self.status = DR_ANGRY
+            mess("The Dragon is angered")
+
+
+    def stateName(self):
+        if self.status == DR_SLEEPING:
+            return "Sleeping"
+        elif self.status == DR_AWAKE:
+            return "Hunting"
+        elif self.status == DR_ANGRY:
+            if self.charge == DR_IDLE:
+                return "Furious"
+            elif self.charge == DR_CHARGIN:
+                return "About to blow fire"
+            elif self.charge == DR_FIRING:
+                return "Blowing fire"
+
+FR_WANDERING = 0
+FR_ATTACKING = 1
+FR_FLEEING   = 2
+
+class FairyBrain(Brain):
+    def teleport(self):
+        if cansee(x,y,self.p.x,self.p.y):
+            mess("The Fairy disappears before your eyes")
+        (sx,sy)=findfree()
+        self.p.x = sx
+        self.p.y = sy
+        self.state = FR_WANDERING
+
+    def initState(self):
+        self.state = FR_WANDERING
+
+    def morale(self):
+        return float(self.p.hp)/self.p.maxhp - 0.5 
+
+    def stateMachine(self):
+        if self.state == FR_WANDERING:
+           if cansee(x,y,self.p.x,self.p.y) and (abs(self.p.x - x) + abs(self.p.y - y) < 10):
+                if self.morale() > 0 and randint(0,1)==0:
+                    self.state = FR_ATTACKING
+                else:
+                    self.state = FR_FLEEING
+
+        elif self.state == FR_ATTACKING:
+           if self.morale() < -0.20:
+                self.state = FR_FLEEING
+    def doAction(self):
+        if self.state == FR_WANDERING:
+            if randint(0,20) == 0:
+               self.teleport()
+            else:
+                self.wander()
+
+        elif self.state == FR_ATTACKING:
+            self.pursuePlayer()
+            self.pursuePlayer()
+
+        elif self.state == FR_FLEEING:
+            if randint(0,abs(self.p.x-x)+abs(self.p.y-y)) == 0:
+               self.teleport()
+            self.fleeAndDefend()
+            self.fleeAndDefend()
+            
+
+
+    def hitMessage(self):
+        if randint(0,5)==0:
+            self.teleport()
+
+    def stateName(self):
+        if self.state == FR_WANDERING:
+           return "Wandering"
+        elif self.state == FR_ATTACKING:
+            return "Attacking"
+        elif self.state == FR_FLEEING:
+            return "Fleeing"
+
+
+HS_WANDERING = 0
+HS_HUNTING = 1
+HS_FLEEING = 2
+HS_PANIC = 3
+
+PR_TIMID = 0
+PR_PRUDENT = 1
+PR_AGGRESSIVE = 2
+
+class HunterBrainAlpha(Brain):
+    def __init__(self,parent,personality=PR_AGGRESSIVE):
+        Brain.__init__(self,parent)
+        self.personality = personality
+        self.betas = []
+    def initState(self):
+        self.state = HS_WANDERING
+
+   
+
+    def stateMachine(self):
+        if self.state == HS_WANDERING:
+           if (abs(self.p.x-x)+abs(self.p.y-y)<18) and cansee(x,y,self.p.x,self.p.y):
+                if self.personality + randint(0,1)>1:
+                    self.state = HS_HUNTING
+                else:
+                   if randint(0,2)==0:
+                        self.state = HS_FLEEING
+                   else:
+                      self.state = HS_WANDERING
+
+        elif self.state == HS_PANIC:
+            if randint(0,2)==0:
+               self.state = HS_WANDERING
+
+    def doAction(self):
+        if self.state == HS_WANDERING:
+           self.wander()
+        elif self.state == HS_HUNTING:
+            self.pursuePlayer()
+        elif self.state == HS_FLEEING:
+            self.fleeAndDefend()
+        elif self.state == HS_PANIC:
+            self.wander()
+
+
+    def hitMessage(self):
+        if self.state in [HS_WANDERING,HS_FLEEING]:
+           if self.personality > PR_TIMID or randint(0,1)==0:
+              self.state = HS_HUNTING
+           else:
+              self.state = HS_FLEEING
+
+    def stateName(self):
+        return {
+           HS_WANDERING:"Wandering",
+           HS_HUNTING:"Hunting",
+           HS_FLEEING:"Fleeing",
+           HS_PANIC:"Panicking"
+        }[self.state] + (len(self.betas)>0)*" (leader)"
+
+    def deadMessage(self):
+        for i in self.betas:
+           i.kingIsDeadMessage()
+
+
+class HunterBrainBeta(Brain):
+    def __init__(self,parent,leader):
+        Brain.__init__(self,parent)
+        self.leader = leader
+        leader.betas.append(self)
+        self.personality = self.leader.personality
+
+        self.state = self.leader.state
+
+    def deadMessage(self):
+        self.leader.betas.remove(self)
+
+    def stateMachine(self):
+        self.state = self.leader.state
+        
+
+    def doAction(self):
+        if self.state == HS_WANDERING:
+           if randint(0,2)==0:
+              self.goto(self.leader.p.x,self.leader.p.y)
+           else:
+              self.wander()
+        elif self.state == HS_HUNTING:
+            self.pursuePlayer()
+        elif self.state == HS_FLEEING:
+            self.fleeAndDefend()
+
+    def stateName(self):
+        return {
+           HS_WANDERING:"Wandering",
+           HS_HUNTING:"Hunting",
+           HS_FLEEING:"Fleeing",
+           HS_PANIC:"Panicking"
+        }[self.state] + "(following leader)"
+
+    def hitMessage(self):
+        self.leader.hitMessage()
+
+
+    def kingIsDeadMessage(self):
+        mess("King is Dead")
+        self.p.brain = HunterBrainAlpha(self.p,self.personality)
+        self.p.brain.state = HS_PANIC
+     
+    
+
+    
+class Creature:
+    def __init__(self):
+        self.idlecount = 0
+
+    def idleStep(self):
+        self.idlecount += 1
+
+    def resetIdle(self):
+        self.idlecount = 0
+
+
+
+class Entity(Creature):
+    def __init__(self,x,y,name,symbol,atk,dfn,maxhp,expbonus):
+        Creature.__init__(self)
+        self.x = x
+        self.y = y
+        self.name = name
+        self.sprite = symbol
+        self.atk = atk
+        self.dfn = dfn
+        self.maxhp = maxhp
+        self.hp = self.maxhp
+        self.expbonus = expbonus
+
+        self.freezing = (self.sprite in freezinganimals)
+        self.hallucinating = (self.sprite in hallucinatinganimals)
+
+        self.brain = ZombieBrain(self)
+
+    def __getitem__(self,index):
+        if index == 0:
+            return self.x
+        elif index == 1:
+            return self.y
+        elif index == 2:
+           return self.name
+        elif index == 3:
+           return self.sprite
+        elif index == 4:
+            return self.atk
+        elif index == 5:
+            return self.dfn
+        elif index == 6:
+            return self.hp
+        elif index == 7:
+            return self.expbonus
+       
+
+    def __setitem__(self,index,value):
+        if index == 0:
+            self.x = value
+        elif index == 1:
+            self.y = value
+        elif index == 2:
+            self.name = value
+        elif index == 6:
+            self.hp = value
+
+    def getShortStr(self):
+        return self.brain.stateName()
+
+    def getLongStr(self):
+        return self.name + " " + self.getShortStr()
+
+class Meanie(Entity):        
+    def getShortStr(self):
+        return "%s/%s HP - "%(self.hp,self.maxhp) + Entity.getShortStr(self)
+
+
+class AnimalIndexError(Exception):
+    pass
+
+class Animal(Meanie):
+    def __init__(self,x,y,index,personality=0):
+        if not index in range(len(mobsalphabet)):
+            raise AnimalIndexError
+            exit()
+
+        i = index
+        Entity.__init__(self,x,y, mobsalphabet[i] , animalsymbols[i],  2 + max(i,-25+3*i), max(1,i-1,-24+3*i), 4+2*(i+i*i//4),  i//2+1 )
+        
+        self.brain = HunterBrainAlpha(self,personality)
+    def getLongStr(self):
+        return {
+            PR_TIMID:"Timid",
+            PR_PRUDENT:"Prudent",
+            PR_AGGRESSIVE:"Aggressive"
+        }[self.brain.personality] + " " + Meanie.getShortStr(self)
+ 
+class MagicalCreature(Meanie):
+    pass
+
+class Dragon(MagicalCreature):
+    def __init__(self,x,y):
+        Entity.__init__(self,x,y, "Dragon",'D', 150, 80, 1000,300)
+        self.brain = DragonBrain(self)
+
+
+class Fairy(MagicalCreature):
+    def __init__(self,x,y):
+        Entity.__init__(self,x,y, "Fairy" ,  'F', 8 , 20,  300, 100)
+        self.brain = FairyBrain(self)
+
+
+class IceTroll(MagicalCreature):
+    def __init__(self,x,y):
+        Entity.__init__(self,x,y,"Ice Troll" , 'I', 100, 60, 350, 300)
+        self.brain = HunterBrainAlpha(self,PR_AGGRESSIVE)
+
+class Succubus(MagicalCreature):
+    def __init__(self,x,y):
+        Entity.__init__(self,x,y,"Succubus" , 'S', 25,10,120,5)
+        self.brain = HunterBrainAlpha(self,randint(PR_PRUDENT,PR_AGGRESSIVE))
+
+
+
+#atk            #dfn                #hp         #exp
+mobs = [[mobsalphabet[i] , animalsymbols[i],  2 + max(i,-25+3*i), max(1,i-1,-24+3*i), 4+2*(i+i*i//4),  i//2+1] for i in range(0,len(mobsalphabet))]
+
+
+freezinganimals =      [chr(x + ord('a')) for x in ( [8,13,15,16,18,21,23,25] + [0,1]*DEBUG) ] + ['I']
+hallucinatinganimals = [chr(x + ord('a')) for x in ( [5,11,12,18,23]          + [0,1]*DEBUG) ] + ['F']
+
+bosses = {
+    "Dragon":   ["Dragon",  'D', 150, 80, 1000,300],
+    "Fairy":    ["Fairy" ,  'F', 4 , 18,  70, 100],
+    "Ice Troll":    ["Ice Troll",   'I', 100, 60, 350, 300],
+    "Succubus" :    ["Succubus",    'S', 18, 10, 120, 5 ],
+    "Gnome":    ["Gnome",   'g']
+}
+
+
+
+if UNICODE:
+    bosses["Succubus"][1] = u'☿'
+
+
+
+gnomenames = "Berenbur Minnimalkin Bimpni Minnizig Boddywinkle Murkor Bunkkor Nacklebell Cobbnab Namji Dalfoodle Namzig Duvabert Ninbert Duvakor Pilwinkle Elmadge Ranzbert Folmalkin Ranzmut Fudwick Ranznor Garder Roywinkle Glimtwiss Schepgel Hedbiddle Schepmalkin Jebkor Shamip Klemmut Turkor Klemto Wayfoodle Lindtwiss Waypest Looppen Wayrick Loopwyn Zookmadge Lumbiddle Zookmottin Lumwinkle Zooknock Mibbini Zookpen Minnibur Zookwinkle Minnijon".split(" ")
+
+GN_HIDING = 0
+GN_EMPTY = 1
+GN_FULL = 2
+GN_DONE = 3
+
+class gnomeBrain:
+    def __init__(self):
+        self.status = GN_HIDING
+        self.name = choice(gnomenames)
+        if randint(0,0)==1:
+            self.loot = -1
+        else:
+            self.loot = Item(OBJ_SULFUR)
+
+
+'''mobs = {
+0:("Worm"   ,'w',1,0,5 ,2),
+1:("Frog"   ,'f',1,1,8 ,3),
+2:("Moth"   ,'m',2,0,10,3),
+3:("Squid"  ,'s',2,2,11,5),
+4:("Leech"  ,'l',3,2,14,7),
+5:("Rabbit" ,'r',4,3,16,9),
+6:("Zombie" ,'z',5,2,19,11),
+7:("Tiger"  ,'t',8,4,22,13),
+8:("Ghost"  ,'g',7,6,24,14)
+}'''
+
+
+
+
