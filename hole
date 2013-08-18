@@ -213,7 +213,7 @@ if GRAPHIC:
     except ImportError:
         print("Unable to import graphics.py. Are you running from the hole directory?")
         exit()
-    term = graphics.Terminal(WINX,WINY,"Pastiche_16x16.png")
+    term = graphics.Terminal(WINX,WINY,"fonts/Pastiche_16x16.png")
 
     stdscr = term.stdscr
 
@@ -352,15 +352,15 @@ ITINFOBACK = '''
 
 
 
-tfile = open('title','r')
+tfile = open('sprites/title','r')
 title = tfile.readlines()
 tfile.close()
 
-vfile = open('vending','r')
+vfile = open('sprites/vending','r')
 vendingback = vfile.readlines()
 vfile.close()
 
-cfile = open('credits','r')
+cfile = open('sprites/credits','r')
 creditsdata = cfile.readlines()
 credits = creditsdata[:24]
 creditsred = creditsdata[24:49]
