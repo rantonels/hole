@@ -117,12 +117,19 @@ try:
     from src.dMap import *
 except ImportError:
     print("could not find the crucial file dMap.py. Are you running from *inside* the hole directory?")
-
+    exit()
 
 try:
     import src.astar as astar
 except ImportError:
     print("could not find the crucial file astar.py. Are you running from *inside* the hole directory?")
+    exit()
+
+try:
+    import src.simplexnoise as simplex
+except ImportError:
+    print("could not find crucial file simplexnoise.py. Are you running from *inside* the hole directory?")
+    exit()
 
 
 try:
@@ -131,6 +138,7 @@ try:
 except ImportError:
     print("curses library not found. Starting in standalone mode...")
     havecurses = False
+
 
 if havecurses:
     stdscr = curses.initscr()
@@ -491,9 +499,10 @@ class Chestmonster(Item):
             return self.camouflage.colour()
 
 class GnomeItem(Item):
-    def __init__(self,brain,x=0,y=0):
+    def __init__(self,gnome,x=0,y=0):
         Item.__init__(self,OBJ_GNOME,x,y)
-        self.brain = brain 
+        self.gnome = gnome
+        
 
 class Clue(Item):
     def __init__(self,data,x=0,y=0):
@@ -627,7 +636,7 @@ def object_names(obj):
         out = object_names(obj.camouflage)
     
     if num == OBJ_GNOME:
-        out = obj.brain.name
+        out = obj.gnome.name
 
     return out
 
@@ -1141,6 +1150,74 @@ class HunterBrainBeta(Brain):
         self.p.brain.state = HS_PANIC
      
     
+GN_HIDING = 0
+GN_EMPTY = 1
+GN_FULL = 2
+GN_DONE = 3
+
+class GnomeBrain(Brain):
+    def __init__(self,parent):
+        Brain.__init__(self,parent)
+        
+
+        self.name = self.p.name
+
+        if randint(0,0)==1:
+            self.loot = -1
+        else:
+            self.loot = Item(OBJ_SULFUR)
+
+    def initState(self):
+        self.state = GN_HIDING
+
+    def doStep(self):
+                global x,y,gold,inventory
+                s = self.state
+                e = self.p
+                if s == GN_HIDING:
+                    if abs(e[0]-x)<15 and abs(e[1]-y)<15 and randint(0,3)==0 and cansee(e[0],e[1],x,y):
+                        if DEBUG:
+                            mess("Gnome awake")
+                        self.state = GN_EMPTY
+                if s == GN_EMPTY:
+                    if isnonsolid(lvl[e[0]][e[1]]) and abs(e[0]-x)<=1 and abs(e[1]-y)<=1:
+                        if gold > 0:
+                            bott = min(randint(1,3),gold)
+                            gold -= bott
+                            mess("A gnome strips you of your gold!",3)
+                            self.loot = Loot(bott)
+                        elif len(inventory)>0:
+                            ggh = randint(0,len(inventory)-1)
+                            mess("A gnome strips you of your "+object_names(inventory[ggh]),3)
+                            self.loot = inventory[ggh]
+                            del inventory[ggh]
+                        else:
+                            mess("You have nothing to get stolen (that's sad)",3)
+                        self.state = GN_FULL
+                        
+                    elif abs(e[0]-x)<19 and abs(e[1]-y)<19:
+                           self.goto(x,y) 
+                
+                if s == GN_FULL:
+                    ex = e[0]
+                    ey = e[1]
+                    factx=sgn(ex-x)
+                    facty=sgn(ey-y)
+                    possible=[[ex,ey+facty],[ex+factx,ey]]
+                    if len(possible)>0:
+                        (nx,ny)=choice(possible)
+                        (e[0],e[1])=(nx,ny)
+                        if not isnonsolid(lvl[nx][ny]):
+                            self.state = GN_DONE
+
+
+    def stateName(self):
+        return {
+           GN_HIDING: "Hiding",
+           GN_EMPTY: "Stealing",
+           GN_FULL: "Fleeing",
+           GN_DONE: "Sleeping"
+        }[self.state]
 
     
 class Creature:
@@ -1156,22 +1233,13 @@ class Creature:
 
 
 class Entity(Creature):
-    def __init__(self,x,y,name,symbol,atk,dfn,maxhp,expbonus):
+    def __init__(self,x,y,name,symbol):
         Creature.__init__(self)
         self.x = x
         self.y = y
         self.name = name
         self.sprite = symbol
-        self.atk = atk
-        self.dfn = dfn
-        self.maxhp = maxhp
-        self.hp = self.maxhp
-        self.expbonus = expbonus
 
-        self.freezing = (self.sprite in freezinganimals)
-        self.hallucinating = (self.sprite in hallucinatinganimals)
-
-        self.brain = ZombieBrain(self)
 
     def __getitem__(self,index):
         if index == 0:
@@ -1208,8 +1276,38 @@ class Entity(Creature):
     def getLongStr(self):
         return self.name + " " + self.getShortStr()
 
+    def visible(self):
+        return True
+
+class Gnome(Entity):
+    def __init__(self,x,y):
+        global gnomenames
+        Entity.__init__(self,x,y,choice(gnomenames),'g')
+        self.brain = GnomeBrain(self)
+
+
+    def visible(self):
+        global clairvoying
+        e = self
+        return clairvoying or isnonsolid(lvl[e[0]][e[1]])
+        
+
+
 class Meanie(Entity):        
-    def getShortStr(self):
+    def __init__(self,x,y,name,symbol,atk,dfn,maxhp,expbonus):
+        Entity.__init__(self,x,y,name,symbol)
+        self.atk = atk
+        self.dfn = dfn
+        self.maxhp = maxhp
+        self.hp = self.maxhp
+        self.expbonus = expbonus
+
+        self.freezing = (self.sprite in freezinganimals)
+        self.hallucinating = (self.sprite in hallucinatinganimals)
+
+        self.brain = ZombieBrain(self)
+
+def getShortStr(self):
         return "%s/%s HP - "%(self.hp,self.maxhp) + Entity.getShortStr(self)
 
 
@@ -1223,7 +1321,7 @@ class Animal(Meanie):
             exit()
 
         i = index
-        Entity.__init__(self,x,y, mobsalphabet[i] , animalsymbols[i],  2 + max(i,-25+3*i), max(1,i-1,-24+3*i), 4+2*(i+i*i//4),  i//2+1 )
+        Meanie.__init__(self,x,y, mobsalphabet[i] , animalsymbols[i],  2 + max(i,-25+3*i), max(1,i-1,-24+3*i), 4+2*(i+i*i//4),  i//2+1 )
         
         self.brain = HunterBrainAlpha(self,personality)
     def getLongStr(self):
@@ -1238,24 +1336,24 @@ class MagicalCreature(Meanie):
 
 class Dragon(MagicalCreature):
     def __init__(self,x,y):
-        Entity.__init__(self,x,y, "Dragon",'D', 150, 80, 1000,300)
+        Meanie.__init__(self,x,y, "Dragon",'D', 150, 80, 1000,300)
         self.brain = DragonBrain(self)
 
 
 class Fairy(MagicalCreature):
     def __init__(self,x,y):
-        Entity.__init__(self,x,y, "Fairy" ,  'F', 8 , 20,  300, 100)
+        Meanie.__init__(self,x,y, "Fairy" ,  'F', 8 , 20,  300, 100)
         self.brain = FairyBrain(self)
 
 
 class IceTroll(MagicalCreature):
     def __init__(self,x,y):
-        Entity.__init__(self,x,y,"Ice Troll" , 'I', 100, 60, 350, 300)
+        Meanie.__init__(self,x,y,"Ice Troll" , 'I', 100, 60, 350, 300)
         self.brain = HunterBrainAlpha(self,PR_AGGRESSIVE)
 
 class Succubus(MagicalCreature):
     def __init__(self,x,y):
-        Entity.__init__(self,x,y,"Succubus" , 'S', 25,10,120,5)
+        Meanie.__init__(self,x,y,"Succubus" , 'S', 25,10,120,5)
         self.brain = HunterBrainAlpha(self,randint(PR_PRUDENT,PR_AGGRESSIVE))
 
 
@@ -1283,20 +1381,6 @@ if UNICODE:
 
 
 gnomenames = "Berenbur Minnimalkin Bimpni Minnizig Boddywinkle Murkor Bunkkor Nacklebell Cobbnab Namji Dalfoodle Namzig Duvabert Ninbert Duvakor Pilwinkle Elmadge Ranzbert Folmalkin Ranzmut Fudwick Ranznor Garder Roywinkle Glimtwiss Schepgel Hedbiddle Schepmalkin Jebkor Shamip Klemmut Turkor Klemto Wayfoodle Lindtwiss Waypest Looppen Wayrick Loopwyn Zookmadge Lumbiddle Zookmottin Lumwinkle Zooknock Mibbini Zookpen Minnibur Zookwinkle Minnijon".split(" ")
-
-GN_HIDING = 0
-GN_EMPTY = 1
-GN_FULL = 2
-GN_DONE = 3
-
-class gnomeBrain:
-    def __init__(self):
-        self.status = GN_HIDING
-        self.name = choice(gnomenames)
-        if randint(0,0)==1:
-            self.loot = -1
-        else:
-            self.loot = Item(OBJ_SULFUR)
 
 
 '''mobs = {
@@ -1412,6 +1496,7 @@ xaminetiles = {
 
 }
 
+lavanim = [' ','.','-',"'",'"',';','o']
 
 ssheet = {
 0: ('*',3),
@@ -1529,7 +1614,7 @@ def spellrange(n):
         return -1
 
 def spellcast(n):
-    global entities, x, y, mxhp, hp, stage, waterfrozen, clairvoying
+    global entities, x, y, mxhp, hp, stage, waterfrozen, clairvoying, curss
     wand = 0
     for k in equip:
         if k[0][2]==OBJ_WAND:
@@ -1550,8 +1635,7 @@ def spellcast(n):
     elif n==1: #teleport
         elemental(1)
         if stage < 50:
-            (x,y)=findfree()
-            mess("You teleport somewhere else")
+            curss[CURS_TELEPORT] = wand*1 + (1-wand)*4
         else:
             mess("Surprisingly, you are unable to teleport...")
     elif n==2: #miscast
@@ -1767,22 +1851,25 @@ CURS_ICE = 0
 CURS_POISON = 1
 CURS_LOVE = 2
 CURS_HALLUCINATION = 3
-MAXCURS = 3
+CURS_TELEPORT = 4
+MAXCURS = 4
 
 curses_names = {
     CURS_ICE:"Frozen",
     CURS_POISON:"Poisoned",
     CURS_LOVE:"In Love",
-    CURS_HALLUCINATION:"Hallucinating"
+    CURS_HALLUCINATION:"Hallucinating",
+    CURS_TELEPORT:"About to Teleport..."
 }
 
-curses_initial = ["F","P","L","H"]
+curses_initial = ["F","P","L","H","T"]
 
 curses_colors = {
     CURS_ICE:8,
     CURS_POISON:2,
     CURS_LOVE:4,
-    CURS_HALLUCINATION:(MAGENTA,BLACK)
+    CURS_HALLUCINATION:(MAGENTA,BLACK),
+    CURS_TELEPORT:(BLACK,YELLOW)
 }
     
 catalogue = [
@@ -1860,6 +1947,9 @@ flush_main()
 
 
 #INIT
+
+drawCount = 0
+
 mxhp=100
 hp=100
 mana=0
@@ -1873,6 +1963,7 @@ exp=0
 waterfrozen=False
 arrows = 10
 torch = [ [Item(-1),2000] ]
+toggletorch = True
 #if DEBUG:
     #    torch = []
 curss = [0]*(MAXCURS+1)
@@ -1967,6 +2058,7 @@ helppanel = [
 " q                  see messages history (arrow keys to navigate)       ",
 " z                  sort inventory alphabetically                       ",
 " x                  examine, look around, see enemy stats               ",
+" t                  turn torch on/off (turning off costs 10 turns)      ",
 "                                                                   "
 
 ]
@@ -2068,6 +2160,7 @@ for i in range(100,200): #books
     burndata[i] = 50
 
 def addburn(o):
+    global torch,toggletorch
     if not o.ID in burndata:
         mess("You can't burn that.")
         return False
@@ -2076,6 +2169,7 @@ def addburn(o):
     else:
        torch[-1][1] += burndata[o.ID]
     mess("You burn the "+object_names(o)+" to fuel the torch")
+    toggletorch = True
     return True
 
 throwdata = {
@@ -2711,10 +2805,23 @@ curses.echo()
 name = stdscr.getstr(14,6,10)
 curses.noecho()'''
 
+def updateCam(cx = None, cy = None):
+    global camx,camy,x,y,LW_W,LW_H
+    if cx == None:
+       cx = x
+    if cy == None:
+       cy = y
+    camx = min(max(0,cx-LW_W//2),LV_W-LW_W-1)
+    camy = min(max(0,cy-LW_H//2),LV_H-LW_H-2)
+
+
+
 def draw():
-        global lvl,x,y,entities,objects,fow,fog,tset,ssheet,BXCHARS,mana,hp,mxhp,gold,gems,curss,inventory,equip,stage,rank,atk,dfn,attributes, clairvoying, lightradius, turns
+        global lvl,x,y,entities,objects,fow,fog,tset,ssheet,BXCHARS,mana,hp,mxhp,gold,gems,curss,inventory,equip,stage,rank,atk,dfn,attributes, clairvoying, lightradius, turns, drawCount
 
         #DISPLAY / DRAW
+
+        drawCount += 1
 
         #do fow
         '''fow = [[0]*LV_H]*LV_W
@@ -2729,7 +2836,7 @@ def draw():
 
         fovradius = 11 + attributes[ATTR_HAWK_EYE]*5
 
-        if len(torch)>0:
+        if len(torch)>0 and toggletorch:
             lightradius = 13
         else:
             lightradius = 1
@@ -2770,6 +2877,11 @@ def draw():
                         if fovBrain.lit(i,j):
                             if lvl[i][j] == 100 and waterfrozen:    
                                 mypad.addch(j,i,hall_char('/') , hall_color(color_pair(15)))
+                            elif lvl[i][j] == 8:
+                                
+                                val = int(simplex.scaled_raw_noise_3d(0,7, float(i)/3,float(j)/3, float(drawCount)/3))%len(lavanim)
+                                mypad.addch(j,i,hall_char(lavanim[val]),hall_color(tilecol))
+
                             else:
                                 mypad.addstr(j,i,hall_char(tset[lvl[i][j]][0]) , hall_color(tilecol)  )
                                 
@@ -2795,9 +2907,9 @@ def draw():
                 if lvl[e[0]][e[1]] == 8:
                     c=color_pair(12)
                 else:
-                    if e[2] == "Gnome":
-                        if (not clairvoying and not isnonsolid(lvl[e[0]][e[1]])):
-                            continue
+                    if not e.visible():
+                       continue
+                    if isinstance(e,Gnome):
                         c = color_pair(2)
                     else:
                         c = color_pair_fb(RED,BLACK) 
@@ -2899,7 +3011,7 @@ def draw():
         back.addstr(LW_H+4,1,"ATK %s DEF %s SPD %s"%(atk,dfn,speed))
 
         if waterlvl >= WATSTEPS:
-            back.addstr(LW_H+4,15, "Water to floor "+str(waterlvl//WATSTEPS))
+            back.addstr(LW_H+4,24, "Water to floor "+str(waterlvl//WATSTEPS))
 
         if len(torch) == 0:
             tstr = "OFF"
@@ -2937,7 +3049,7 @@ def draw():
 
 def dopturn(cmd):
 
-        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,clairvoying
+        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,clairvoying,toggletorch
 
         turn = False
 
@@ -2986,10 +3098,10 @@ def dopturn(cmd):
                 for e in entities: #hit entities hit enemy
                     if( (e[0]==nx) and (e[1]==ny)):
 
-                        if e[2] == "Gnome" and e[4].status != GN_DONE:
+                        if isinstance(e,Gnome) and e.brain.state != GN_DONE:
                             if (len(inventory)<MAXINV) and  (randint(0,2) + (not attributes[ATTR_STRONG_HANDS]))<1:
                                 mess("You catch a Gnome")
-                                inventory.append(GnomeItem(e[4]))
+                                inventory.append(GnomeItem(e))
                                 entities.remove(e)
                                 return True 
                             else:
@@ -3001,7 +3113,7 @@ def dopturn(cmd):
                             return False
 
 
-                        else:
+                        elif isinstance(e,Meanie):
                             tpow = atk
                             for k in equip:
                                 if k[0].ID == OBJ_SWORD:
@@ -3011,6 +3123,8 @@ def dopturn(cmd):
                                     tpow = (atk * 5)//2
                             hite(e,tpow)
                             return True
+                        else:
+                            return False
 
 
                 if lvl[nx][ny] == 3: #open doors
@@ -3098,6 +3212,21 @@ def dopturn(cmd):
             throw(Item(OBJ_STONE),(x+10,y))
             return True
 
+        if cmd == ord('t'):
+            if len(torch)<=0:
+               mess("There is no fuel in the torch.")
+               return False
+            toggletorch = not toggletorch
+            if toggletorch:
+               mess("You light your torch")
+            else:
+               if torch[-1][1] <= 10:
+                  del torch[-1]
+               else:
+                  torch[-1][1] -= 10
+               mess("You extinguish the torch")
+            return True
+
         #b button burn
 
         if cmd == ord('b') and DEBUG:
@@ -3143,7 +3272,7 @@ def dopturn(cmd):
 
                 if doents:
                     for e in entities:
-                        if [e[0],e[1]] == cursor:
+                        if [e[0],e[1]] == cursor and e.visible():
                             text.append(e.getLongStr())
 #                            text.append("%s %s %s HP - %s"%(e[3],e[2],e[6],e.brain.stateName() ))
                             #text.append("%s %s "%(e[3],e[2]))
@@ -3214,11 +3343,10 @@ def dopturn(cmd):
                 cursor[0] %= LV_W
                 cursor[1] %= LV_H
 
-                camx = min(max(0,cursor[0]-LW_W//2),LV_W-LW_W-1)
-                camy = min(max(0,cursor[1]-LW_H//2),LV_H-LW_H-2)
+                updateCam(cursor[0],cursor[1])
 
-            camx = min(max(0,x-LW_W//2),LV_W-LW_W-1)
-            camy = min(max(0,y-LW_H//2),LV_H-LW_H-2)
+
+            updateCam()
 
 
             return False
@@ -3265,9 +3393,10 @@ def dopturn(cmd):
                     pos = it - len(equip)
                     #special droppings
                     if inventory[pos][2] == OBJ_GNOME:
-                        mess("You let "+inventory[pos].brain.name+" go")
-                        gibby = [x,y]+bosses["Gnome"] + [inventory[pos].brain]
-                        gibby[4].status = GN_FULL
+                        mess("You let "+inventory[pos].gnome.name+" go")
+                        gibby = inventory[pos].gnome
+                        gibby.brain.status = GN_FULL
+                        (gibby.x,gibby.y) = (x,y)
                         entities.append(gibby)
                         del inventory[pos]
                     else: #ordinary droppings (special effects)
@@ -3369,7 +3498,7 @@ def dopturn(cmd):
                             koth.append([px,py])
 
                         for j in koth:
-                            entities.append(j+list(mobs[randint(stage//3,stage//2)]))
+                            entities.append(Animal(j[0],j[1],randint(stage//3,stage//2),PR_AGGRESSIVE))
                         objects.remove(o)
                         return True
                     elif o[2] == OBJ_PLANT:
@@ -3483,7 +3612,7 @@ def dopturn(cmd):
                 mess("You don't have any mana to perform magic with",3)
                 return False
     
-        # use object (0-9)
+        # u button use object (0-9)
         lawlz = False
         burnit = False
         printinfo = False
@@ -3611,7 +3740,7 @@ def dopturn(cmd):
                     mana = min(mana+b,MAXMANA)
                     del inventory[touse]
                 elif idd == OBJ_GNOME:
-                    l = inventory[touse].brain.loot 
+                    l = inventory[touse].gnome.brain.loot 
                     if l == -1:
                         mess("The gnome is not carrying anything")
                     elif l.ID == OBJ_GOLD:
@@ -3619,10 +3748,10 @@ def dopturn(cmd):
                         gold += l.amount
                     else:
                         mess("You shake the gnome and a "+object_names(l) +" comes out.")
-                        inventory[touse].brain.loot.position(x,y)
-                        objects.append(inventory[touse].brain.loot)
+                        inventory[touse].gnome.brain.loot.position(x,y)
+                        objects.append(inventory[touse].gnome.brain.loot)
 
-                    inventory[touse].brain.loot = -1
+                    inventory[touse].gnome.brain.loot = -1
 
                 elif idd == OBJ_PLANT:
                     species = inventory[touse].species
@@ -3989,87 +4118,7 @@ def do_timestep():
         compileWmap()
 
         for e in entities:
-            '''if e[2] == 'Fairy':
-                if randint(0,e[6])==0:
-                    if (abs(x-e[0])+abs(y-e[1])) < 15:
-                            mess("The Fairy disappears before your eyes")
-                    (sx,sy)=findfree()
-                    e[0] = sx
-                    e[1] = sy
-                for c in range(0,2):        #walk twice
-                            ex = e[0]
-                            ey = e[1]
-                            if cansee(x,y,ex,ey):
-                                    factx=sgn(ex-x)
-                                    facty=sgn(ey-y)
-                                    possible=[[ex,ey+facty],[ex+factx,ey]]
-                            else:
-                                    possible=[[ex,ey],[ex,ey],[ex,ey-1],[ex,ey+1],[ex-1,ey],[ex+1,ey]]
-                            possiblec=possible
-                            for p in possiblec:
-                                if not iswalkable(p[0],p[1]):
-                                    possible.remove(p)
-                            if len(possible)>0:
-                                (nx,ny)=choice(possible)
-                            if iswalkable(nx,ny):
-                                (e[0],e[1])=(nx,ny)'''
             
-            if e[2] == 'Gnome': #gnomes (no attack)
-                s = e[4].status
-                if s == GN_HIDING:
-                    if abs(e[0]-x)<15 and abs(e[1]-y)<15 and randint(0,3)==0 and cansee(e[0],e[1],x,y):
-                        if DEBUG:
-                            mess("Gnome awake")
-                        e[4].status = GN_EMPTY
-                if s == GN_EMPTY:
-                    if isnonsolid(lvl[e[0]][e[1]]) and abs(e[0]-x)<=1 and abs(e[1]-y)<=1:
-                        if gold > 0:
-                            bott = min(randint(1,3),gold)
-                            gold -= bott
-                            mess("A gnome strips you of your gold!",3)
-                            e[4].loot = Loot(bott)
-                        elif len(inventory)>0:
-                            ggh = randint(0,len(inventory)-1)
-                            mess("A gnome strips you of your "+object_names(inventory[ggh]),3)
-                            e[4].loot = inventory[ggh]
-                            del inventory[ggh]
-                        else:
-                            mess("You have nothing to get stolen (that's sad)",3)
-                        e[4].status = GN_FULL
-                        
-                    elif abs(e[0]-x)<19 and abs(e[1]-y)<19:
-                            ex = e[0]
-                            ey = e[1]
-                            factx=-sgn(ex-x)
-                            facty=-sgn(ey-y)
-                            possible=[[ex,ey+facty],[ex+factx,ey]]
-                            possiblec = possible
-                            for p in possiblec:
-                                if not iswalkable(p[0],p[1]):
-                                    possible.remove(p)
-                            if len(possible)>0:
-                                (nx,ny)=choice(possible)
-                            if iswalkable(nx,ny):
-                                (e[0],e[1])=(nx,ny)
-                
-                if s == GN_FULL:
-                    ex = e[0]
-                    ey = e[1]
-                    factx=sgn(ex-x)
-                    facty=sgn(ey-y)
-                    possible=[[ex,ey+facty],[ex+factx,ey]]
-                    if len(possible)>0:
-                        (nx,ny)=choice(possible)
-                        (e[0],e[1])=(nx,ny)
-                        if not isnonsolid(lvl[nx][ny]):
-                            e[4].status = GN_DONE
-
-                        
- 
-                
-
-
-            else: #not a dragon
                 if ord(e[3]) in range(ord('a'),ord('z')+1):
                     if randint(0,25) > ord(e[3]) - ord('a'):
                         reps = 1
@@ -4159,13 +4208,22 @@ def do_timestep():
                 mana = min(mana+ 1 + mana//50,MAXMANA)
 
         #cure curses
+        if curss[CURS_TELEPORT] == 1:
+            (x,y)=findfree()
+            mess("You teleport somewhere else")
+            updateCam()
+
         if curss[CURS_ICE] == 1:
             mess("You are unfrozen.",2)
+
         for i in range(0,len(curss)):
             curss[i]= max(0,curss[i]-1)
 
+
+        
+
         #consume torch
-        if len(torch)>0:
+        if len(torch)>0 and toggletorch:
             torch[-1][1] -= 1
             if torch[-1][1] <= 0:
                 del torch[-1]
@@ -4430,6 +4488,7 @@ while alive:
             ("A litte tip: the King is just","in LOVE with emeralds."),
             ("Spider Goddesses: worse than","Hitler. We hate those."),
             ("Who has 8 legs and is a God?","Nobody! AHAHAHAHAHAHAHA")
+            
         ])
     
         stdscr.addstr(3,3,"Adding objects and entities...")
@@ -4503,7 +4562,7 @@ while alive:
             objects.append(Item(OBJ_STONE,gx,gy))
 
         #add sulfur
-        if stage in range(3,8):
+        if stage in range(3,16)+range(25,30):
             (gx,gy) = findfree()
             objects.append(Item(OBJ_SULFUR,gx,gy))
 
@@ -4517,7 +4576,7 @@ while alive:
         for _ in range(4+stage//20+randint(-1,1)):
             (gx,gy) = findfree()
             i = randint(min(max(0,stage//2-4-2*(i//20)),len(mobs)-1),min(stage//2,len(mobs)-1))
-            add_pack(i,gx,gy,1,2+stage//10)
+            add_pack(i,gx,gy,1,2+stage//20)
 
         #add bosses
         #add dragon
@@ -4563,9 +4622,9 @@ while alive:
         if stage > 2:
             for i in range(0,LV_W):
                 for j in range(0,LV_H):
-                    gnomedens = (dtype==0)*800 + (dtype==1)*100
+                    gnomedens = (dtype==0)*400 + (dtype==1)*50
                     if lvl[i][j] == 11 and randint(0,gnomedens) == 0:
-                        '''entities.append([i,j]+bosses["Gnome"]+[gnomeBrain()])'''
+                        entities.append(Gnome(i,j))
 
 
         #add clues
@@ -4616,9 +4675,8 @@ while alive:
         mess("Thanks for sticking with us till now")
 
 
-    camx = min(max(0,x-LW_W//2),LV_W-LW_W-1)
-    camy = min(max(0,y-LW_H//2),LV_H-LW_H-2)
 
+    updateCam()
 
     fog = [[0 for j in range(0,LV_H)] for i in range(0,LV_W)]
 
@@ -4655,9 +4713,8 @@ while alive:
                 break
 
             #camera
-            camx = min(max(0,x-LW_W//2),LV_W-LW_W-1)
-            camy = min(max(0,y-LW_H//2),LV_H-LW_H-2)
 
+            updateCam()
 
         #do step
         do_timestep()
