@@ -131,6 +131,12 @@ except ImportError:
     print("could not find crucial file simplexnoise.py. Are you running from *inside* the hole directory?")
     exit()
 
+try:
+    import src.names as names
+except ImportError:
+    print("could not find crucial file names.py. Are you running from *inside* the hole directory?")
+    exit()
+
 
 try:
     import curses
@@ -213,7 +219,7 @@ if GRAPHIC:
     except ImportError:
         print("Unable to import graphics.py. Are you running from the hole directory?")
         exit()
-    term = graphics.Terminal(WINX,WINY,"fonts/Pastiche_16x16.png")
+    term = graphics.Terminal(WINX,WINY,"fonts/Pastiche_16x16.png","sprites/tileset.png")
 
     stdscr = term.stdscr
 
@@ -693,12 +699,16 @@ mobsalphabet = {
 25:"Zebra"}
 
 animalsymbols = [chr(ord('a')+i) for i in range(0,len(mobsalphabet))]
+
 if UNICODE:
     animalsymbols[0] = u'¥'
     animalsymbols[1] = u'ഴ'
     animalsymbols[5] = u'ൠ'
     animalsymbols[18] = u'ᴥ'
     
+if GRAPHIC:
+    animalsymbols = [chr(127 + 32 + 1 + i) for i in range(0,len(mobsalphabet))]
+
 #don't add gerbil!
 
 freezinganimals =      [chr(x + ord('a')) for x in ( [8,13,15,16,18,21,23,25] + [0,1]*DEBUG) ] + ['I']
@@ -769,7 +779,7 @@ class Brain:
             if not iswalkable(p[0],p[1]):
                 possible.remove(p)'''
 
-        p = astar.pathfind(mobpathfun,(self.p.x,self.p.y),(x,y),aswmap)
+        p = astar.pathfind(mobpathfun,(self.p.x,self.p.y),(x,y),aswmap,40)
         if p == -1:
            self.wander()
         elif len(p)>1:
@@ -974,7 +984,7 @@ class DragonBrain(Brain):
         elif self.status == DR_ANGRY:
             if self.charge == DR_IDLE:
                 return "Furious"
-            elif self.charge == DR_CHARGIN:
+            elif self.charge == DR_CHARGING:
                 return "About to blow fire"
             elif self.charge == DR_FIRING:
                 return "Blowing fire"
@@ -1230,6 +1240,8 @@ class Creature:
     def resetIdle(self):
         self.idlecount = 0
 
+    def colour(self):
+        return WHITE
 
 
 class Entity(Creature):
@@ -1281,8 +1293,8 @@ class Entity(Creature):
 
 class Gnome(Entity):
     def __init__(self,x,y):
-        global gnomenames
-        Entity.__init__(self,x,y,choice(gnomenames),'g')
+        global namegenGnome
+        Entity.__init__(self,x,y,namegenGnome.New(),'g')
         self.brain = GnomeBrain(self)
 
 
@@ -1291,6 +1303,8 @@ class Gnome(Entity):
         e = self
         return clairvoying or isnonsolid(lvl[e[0]][e[1]])
         
+    def colour(self):
+        return GREEN
 
 
 class Meanie(Entity):        
@@ -1307,8 +1321,12 @@ class Meanie(Entity):
 
         self.brain = ZombieBrain(self)
 
-def getShortStr(self):
-        return "%s/%s HP - "%(self.hp,self.maxhp) + Entity.getShortStr(self)
+    
+    def colour(self):
+        return RED    
+
+    def getLongStr(self):
+        return self.name + " %s/%s HP - "%(self.hp,self.maxhp) + Entity.getShortStr(self)
 
 
 class AnimalIndexError(Exception):
@@ -1322,7 +1340,8 @@ class Animal(Meanie):
 
         i = index
         Meanie.__init__(self,x,y, mobsalphabet[i] , animalsymbols[i],  2 + max(i,-25+3*i), max(1,i-1,-24+3*i), 4+2*(i+i*i//4),  i//2+1 )
-        
+       
+ 
         self.brain = HunterBrainAlpha(self,personality)
     def getLongStr(self):
         return {
@@ -1481,6 +1500,10 @@ luminescent = [8]
 if UNICODE:
     tset[100] = (u'♒',6)
 
+if GRAPHIC:
+    for i in range(0,4):
+        tset[i] = (chr(127+i),None)
+
 xaminetiles = {
     1: "It's a sturdy stone wall.",
     2: "Uhmm... you shouldn't be able to see this...",
@@ -1497,6 +1520,10 @@ xaminetiles = {
 }
 
 lavanim = [' ','.','-',"'",'"',';','o']
+
+PSPRITE = "@"
+if GRAPHIC:
+    PSPRITE = chr(127 + 32*2 + 1)
 
 ssheet = {
 0: ('*',3),
@@ -1722,7 +1749,7 @@ def spellcast(n):
                         rcol = ('.',color_pair(4))
                     mypad.addch(e[1],e[0],e[3],rcol[1])
 
-                mypad.addch(y,x,'@',color_pair(16))
+                mypad.addch(y,x,PSPRITE,color_pair(16))
 
                 blitlvl()
                 flush_main()
@@ -1761,7 +1788,7 @@ def spellcast(n):
         dc = -1
         while True:
             draw()
-            mypad.addch(y,x,'@',color_pair(10))  
+            mypad.addch(y,x,PSPRITE,color_pair(10))  
             '''for i in range(1,trange+1):
                 addchsafe(y,x-i,' ',color_pair(13))
                 addchsafe(y,x+i,' ',color_pair(13))
@@ -1780,13 +1807,13 @@ def spellcast(n):
 
             i = count
             if dc == 2:
-                    addchsafe(y,x-i,'@',color_pair(2))
+                    addchsafe(y,x-i,PSPRITE,color_pair(2))
             if dc == 0:
-                    addchsafe(y,x+i,'@',color_pair(2))
+                    addchsafe(y,x+i,PSPRITE,color_pair(2))
             if dc == 3:
-                    addchsafe(y-i,x,'@',color_pair(2))
+                    addchsafe(y-i,x,PSPRITE,color_pair(2))
             if dc == 1:
-                    addchsafe(y+i,x,'@',color_pair(2))
+                    addchsafe(y+i,x,PSPRITE,color_pair(2))
             
 
             blitlvl()
@@ -2104,8 +2131,8 @@ def finale():
         
     for l in diag:
         stdscr.clear()
-        stdscr.addch(15,20,'@',color_pair(10))   
-        stdscr.addch(15,23,'@',color_pair(0))
+        stdscr.addch(15,20,PSPRITE,color_pair(10))   
+        stdscr.addch(15,23,PSPRITE,color_pair(0))
         stdscr.addstr(7,6,"                                             ")
         n = [name+": ","Oskar: ",""][l[0]]
         dcl = [color_pair(i) for i in [8,10,0]][l[0]]
@@ -2374,9 +2401,39 @@ def cansee(xa,ya,xb,yb):
 
 messages=[("the adventure begins",0)]
 def mess(strin,col=0):
+    global messages
     if False: #len(messages)>=5:
         messages.pop(0)
     messages.append([strin,col])
+
+def formatrep(n):
+    if n <= 1:
+        return ""
+    else:
+        return " (x%s)"%n
+
+def printBar(y,x,string,filled,total,fillpair,backpair):
+    sss = string.ljust(total)
+    back.addstr(y,x,        sss[0:filled]   ,fillpair)
+    back.addstr(y,x+filled, sss[filled:]    ,backpair)
+
+def messformat():
+    global messages
+
+    if len(messages)<=1:
+        return messages
+
+    out = [messages[0]]
+
+    count = 1
+    for i in range(1,len(messages)+1):
+        if i == len(messages) or messages[i][0] != messages[i-1][0]:
+            out.append((messages[i-1][0] + formatrep(count) , messages[i-1][1]))
+            count = 1
+        else:
+            count +=1
+
+    return out
 
 def findfree():
     global lvl
@@ -2640,6 +2697,10 @@ dada =[
 "Quit"
 ]
 
+namegenMale = names.MName(names.LUTMAL)
+namegenFemale = names.MName(names.LUTFEM)
+namegenGnome = names.MName(gnomenames)
+
 n = 0
 menu = True
 while menu:
@@ -2687,7 +2748,7 @@ while menu:
     elif key == KEYENTER:
         if n == 0:
             menu = False
-            name = "Sasellor"
+            name = namegenMale.New()
             gender = 0
             spellsprog = [1, 0, 0]
             attributes = [1,1,0,0]
@@ -2737,6 +2798,8 @@ while menu:
                     if m==len(stuff)-1:
                         spellsprog = [0]*3
                         spellsprog[fspell] = 1
+                        if name.strip() == "":
+                            name = namegenFemale.New() if gender else namegenMale.New()
                         menu = False
                         cock = False
                     if m==0:
@@ -2817,7 +2880,7 @@ def updateCam(cx = None, cy = None):
 
 
 def draw():
-        global lvl,x,y,entities,objects,fow,fog,tset,ssheet,BXCHARS,mana,hp,mxhp,gold,gems,curss,inventory,equip,stage,rank,atk,dfn,attributes, clairvoying, lightradius, turns, drawCount
+        global lvl,x,y,entities,objects,fow,fog,tset,ssheet,BXCHARS,mana,hp,mxhp,gold,gems,curss,inventory,equip,stage,rank,atk,dfn,attributes, clairvoying, lightradius, turns, drawCount, infoent
 
         #DISPLAY / DRAW
 
@@ -2909,10 +2972,7 @@ def draw():
                 else:
                     if not e.visible():
                        continue
-                    if isinstance(e,Gnome):
-                        c = color_pair(2)
-                    else:
-                        c = color_pair_fb(RED,BLACK) 
+                    c = color_pair_fb(e.colour(),BLACK) 
 
                 addchsafe(e[1],e[0],hall_char(e[3]), hall_color(c))
                 if isinstance(e,Dragon):
@@ -2934,7 +2994,7 @@ def draw():
         else:
             c=color_pair_fb(WHITE,BLACK) 
 
-        mypad.addch(y,x,'@',c)
+        mypad.addch(y,x,PSPRITE,c)
 
 
         #border
@@ -2964,10 +3024,22 @@ def draw():
         if gems[stage-1]:
             back.addstr(LW_H+3,21, "EF!", color_pair(2))
         ct=0
-        for m in reverse(messages[-5:]):
+        for m in reverse(messformat()[-5:]):
             lecol=color_pair(m[1])
             back.addstr(LW_H+6+ct,1, m[0], lecol)
             ct+=1
+
+        #visible entities
+        yyy = LW_H+6
+        if curss[CURS_HALLUCINATION] <= 0:
+            infoent = [e for e in entities if (e.visible() and fovBrain.lit(e.x,e.y))]
+            for e in infoent[:5]:
+                if hasattr(e,'hp'):
+                    fill = ( 20 * e.hp ) // e.maxhp
+                else:
+                    fill = 20
+                printBar(yyy,LW_W+2,e.sprite + " " + e.name,fill,20,color_pair_fb(BLACK,e.colour()),color_pair_fb(e.colour(),BLACK))
+                yyy+=1
 
         back.addstr(LW_H+2,7,"*FLOOR "+str(stage)+" - "+dtypenames[dtype] +"*")
         if speed > 0:
@@ -3910,23 +3982,24 @@ def dopturn(cmd):
 
         #q button see history
         if cmd == ord('q'):
-            p = len(messages)-24
+            mlist = messformat()
+            p = len(mlist)-24
             while True:
                 stdscr.clear()
                 yy = 1
-                for m in messages[max(0,p) : min(len(messages),p+24) ] :
+                for m in mlist[max(0,p) : min(len(mlist),p+24) ] :
                     stdscr.addstr(yy,1,m[0],color_pair(m[1]))
                     yy+=1
                 flush_main()
                 qeqr = getchar()
                 if qeqr in [KEYDOWN,ord('j')]:
-                    p = min(len(messages)-24,p+1)
+                    p = min(len(mlist)-24,p+1)
                 if qeqr in [KEYUP,ord('k')]:
                     p = max(0,(p-1))
                 if qeqr in [KEYLEFT,ord('h')]:
                     p = max(0,(p-10))
                 if qeqr in [KEYRIGHT,ord('l')]:
-                    p = min(len(messages)-24,p+10)
+                    p = min(len(mlist)-24,p+10)
                 if qeqr in [KEYENTER,ord('q')]:
                     break    
             return False
@@ -4010,7 +4083,7 @@ def dopturn(cmd):
                         if (j==3):
                             c=('%',C_WHITEBLUE)
                         if ([i,j]==orientation):
-                            c = ('@',color_pair(0))'''
+                            c = (PSPRITE,color_pair(0))'''
 
 
                             
@@ -4119,25 +4192,11 @@ def do_timestep():
 
         for e in entities:
             
-                if ord(e[3]) in range(ord('a'),ord('z')+1):
-                    if randint(0,25) > ord(e[3]) - ord('a'):
-                        reps = 1
-                    else:
-                        reps = 2
-                elif e[3] == 'D':
-                    reps = 1
-                else:
-                    reps = 2
+                ex=e[0]
+                ey=e[1]
 
-
-                
-
-                for lol in range(0,reps):
-                    ex=e[0]
-                    ey=e[1]
-
-                    if not isinstance(e,list):
-                        e.brain.doStep()
+                if not isinstance(e,list):
+                    e.brain.doStep()
 
 
                         
@@ -4289,10 +4348,10 @@ def do_step():
 
 
 def do_prelim():
-    global clairvoying
+    global clairvoying,infoent
     #end clairvoying (it can't be forever, y'know?)
     clairvoying = max(0,clairvoying-1)
-
+    infoent=[]
 
 
 stdscr.clear()
@@ -4732,7 +4791,7 @@ if specialending <=1:
     stdscr.addstr(2,15,"You are dead.")
     stdscr.addstr(5,5,"Last messages:")
     ppp=7
-    for m in reversed(messages[-5:]):
+    for m in reversed(messformat()[-5:]):
         stdscr.addstr(ppp,8,m[0])
         ppp+=1
 

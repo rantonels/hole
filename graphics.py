@@ -1,4 +1,5 @@
 import sys
+import time
 
 try:
     import pygame as pg
@@ -76,6 +77,12 @@ COLORPAIRS = {
     19:(C_BLACK,    C_BLUE)
 }
 
+def numberize(norc):
+    if isinstance(norc,int):
+        return norc
+    else:
+        return ord(norc)
+
 class Pad:
     def __init__(self,xsize,ysize):
         self.data = [[[0,0] for _ in range(ysize)] for _ in range(xsize)]
@@ -93,7 +100,7 @@ class Pad:
         if char == '\n':
             return
         if x in range(0,self.xsize) and y in range(0,self.ysize):
-            self.data[x][y] = [ord(char),color]
+            self.data[x][y] = [numberize(char),color]
         else:
             print("WARNING: drawing outside canvas.")
     def addstr(self,y,x,string,color=0):
@@ -104,17 +111,16 @@ class Pad:
 
 
 class Terminal:
-    def __init__(self,MX,MY,fontfile):
+    def __init__(self,MX,MY,fontfile,tilesetfile):
         pg.init()
+
+
         pg.mouse.set_visible(0)
 
+        pg.key.set_repeat(250, 1)
+
         self.font = pg.image.load(fontfile)
-        self.colorpairs = []
-        for i in range(0,20):
-            if i in COLORPAIRS:
-                self.colorpairs.append(colorize(self.font,COLORPAIRS[i][0],COLORPAIRS[i][1]))
-            else:
-                self.colorpairs.append(self.font)
+        self.tileset = pg.image.load(tilesetfile)
 
         print("Font file size: "+str(self.font.get_width())+"x"+str(self.font.get_height()))
 
@@ -128,21 +134,45 @@ class Terminal:
         self.SW = MX*self.tsize[0]
         self.SH = MY*self.tsize[1]
 
-        self.screen = pg.display.set_mode((self.SW,self.SH))
+        flags = pg.HWSURFACE | pg.DOUBLEBUF
+
+        self.screen = pg.display.set_mode((self.SW,self.SH),flags)
+
+        self.font = self.font.convert()
+        self.tileset = self.tileset.convert()
+        print("generating colorpairs...")
+        self.colorpairs = []
+        for i in range(0,25):
+            if i in COLORPAIRS:
+                self.colorpairs.append(colorize(self.font,COLORPAIRS[i][0],COLORPAIRS[i][1]))
+            else:
+                self.colorpairs.append(self.font)
+
+        self.screen.set_alpha(None)
 
         self.stdscr = Pad(self.W,self.H)
 
+        self.ignorepairs = [0]
+
     def refresh(self):
-        
+       
         self.screen.fill(pg.Color("black"))
         for i in range(self.W):
             for j in range(self.H):
                 coords = (i*self.tsize[0] , j*self.tsize[1])
                 ch = self.stdscr.data[i][j][0]
-                rect = ( ch%16 * self.tsize[0] , ch//16 * self.tsize[1] , self.tsize[0] , self.tsize[1])
-                colfont = self.colorpairs[self.stdscr.data[i][j][1]]
-                self.screen.blit(colfont,  coords , rect  )
-        pg.display.update()
+                if ch == ord(' ') and self.stdscr.data[i][j][1] in self.ignorepairs:
+                    continue
+                if ch < 127:
+                    rect = ( ch%16 * self.tsize[0] , ch//16 * self.tsize[1] , self.tsize[0] , self.tsize[1])
+                    colfont = self.stdscr.data[i][j][1]
+                    self.screen.blit(self.colorpairs[colfont],  coords , rect  )
+                else:
+                    tn = ch-127
+                    rect = ( tn%32 * self.tsize[0], tn//32 * self.tsize[1], self.tsize[0] , self.tsize[1] )
+                    self.screen.blit(self.tileset, coords, rect)
+        pg.display.flip()
+
 
     def blit(self,pad,yp,xp,ys,xs,h,w):
         for i in range(w):

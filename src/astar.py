@@ -49,7 +49,7 @@ class Tile:
 
 
 
-def pathfind(mapfunction,start,endp,weightmap = {}):
+def pathfind(mapfunction,start,endp,weightmap = {}, maxg = -1):
 
     global end
     end = endp
@@ -100,6 +100,8 @@ def pathfind(mapfunction,start,endp,weightmap = {}):
 
             log("processing "+str(n))
 
+            if maxg != -1 and n.g >= maxg: #if we're outside range, abort everything
+                return -1
             
             if mapfunction(n.x,n.y) != 0: #if it's blocked, ignore
                 log("it was blocked.")
