@@ -15,7 +15,7 @@ KRIGHT = 275
 KENTER = 13
 
 def colorize(img,fore,back):
-   fsu = pg.Surface(img.get_rect().size, pg.HWSURFACE)
+   '''fsu = pg.Surface(img.get_rect().size, pg.HWSURFACE)
    bsu = pg.Surface(img.get_rect().size, pg.HWSURFACE)
 
    fsu.fill(fore)
@@ -24,7 +24,11 @@ def colorize(img,fore,back):
    fsu.set_colorkey(fsu.get_at((0,0)))
    bsu.blit(fsu, (0,0), None, 0)
 
-   return bsu
+   return bsu'''
+
+   o = img.copy()
+   o.set_palette([back,fore])
+   return o.convert()
 
 _NUMERALS = '0123456789abcdefABCDEF'
 _HEXDEC = {v: int(v, 16) for v in (x+y for x in _NUMERALS for y in _NUMERALS)}
@@ -55,27 +59,7 @@ C_CYAN = (0,253,253)
 C_MAGENTA = (253,0,253)
 C_BLACK = (3,3,3)
 
-COLORPAIRS = {
-    0:(C_WHITE,     C_BLACK),
-    1:(C_BLACK,     C_WHITE),
-    2:(C_GREEN,     C_BLACK),
-    3:(C_YELLOW,    C_BLACK),
-    4:(C_RED,       C_BLACK),
-    5:(C_BLACK,     C_YELLOW),
-    6:(C_WHITE,     C_BLUE),
-    7:(C_YELLOW,    C_WHITE),
-    8:(C_BLUE,      C_BLACK),
-    9:(C_WHITE,     C_RED),
-    10:(C_MAGENTA,  C_BLACK),
-    11:(C_WHITE,    C_YELLOW),
-    12:(C_YELLOW,   C_RED),
-    13:(C_BLACK,    C_MAGENTA),
-    14:(C_MAGENTA,  C_GREEN),
-    15:(C_WHITE,    C_BLUE),
-    16:(C_BLUE,     C_YELLOW),
-    18:(C_CYAN,     C_BLACK),
-    19:(C_BLACK,    C_BLUE)
-}
+
 
 def numberize(norc):
     if isinstance(norc,int):
@@ -117,7 +101,7 @@ class Terminal:
 
         pg.mouse.set_visible(0)
 
-        pg.key.set_repeat(250, 1)
+        pg.key.set_repeat(250, 10)
 
         self.font = pg.image.load(fontfile)
         self.tileset = pg.image.load(tilesetfile)
@@ -138,17 +122,43 @@ class Terminal:
 
         self.screen = pg.display.set_mode((self.SW,self.SH),flags)
 
-        self.font = self.font.convert()
+        self.font = self.font
         self.tileset = self.tileset.convert()
+        
+        print("extracting colours...")
+        (C_WHITE,C_RED,C_GREEN,C_BLUE,C_YELLOW,C_CYAN,C_MAGENTA,C_BLACK) = tuple( 
+            [ self.tileset.get_at( (i,0) )[0:3] for i in range(0,8) ] 
+        )
+
+        COLORPAIRS = {
+          0:(C_WHITE,     C_BLACK),
+          1:(C_BLACK,     C_WHITE),
+          2:(C_GREEN,     C_BLACK),
+          3:(C_YELLOW,    C_BLACK),
+          4:(C_RED,       C_BLACK),
+          5:(C_BLACK,     C_YELLOW),
+          6:(C_WHITE,     C_BLUE),
+          7:(C_YELLOW,    C_WHITE),
+          8:(C_BLUE,      C_BLACK),
+          9:(C_WHITE,     C_RED),
+          10:(C_MAGENTA,  C_BLACK),
+          11:(C_WHITE,    C_YELLOW),
+          12:(C_YELLOW,   C_RED),
+          13:(C_BLACK,    C_MAGENTA),
+          14:(C_MAGENTA,  C_GREEN),
+          15:(C_WHITE,    C_BLUE),
+          16:(C_BLUE,     C_YELLOW),
+          18:(C_CYAN,     C_BLACK),
+          19:(C_BLACK,    C_BLUE)
+        }
         print("generating colorpairs...")
         self.colorpairs = []
-        for i in range(0,25):
+        for i in range(0,22 + 64):
             if i in COLORPAIRS:
                 self.colorpairs.append(colorize(self.font,COLORPAIRS[i][0],COLORPAIRS[i][1]))
             else:
                 self.colorpairs.append(self.font)
 
-        self.screen.set_alpha(None)
 
         self.stdscr = Pad(self.W,self.H)
 
