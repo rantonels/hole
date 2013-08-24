@@ -2,10 +2,10 @@ from distutils.core import setup
 import py2exe
 
 setup(
-    console=["hole"]
+    console=["hole"],
     options = {
         "py2exe":{
-            "dist_dir":""
+            "dist_dir":"",
             "unbuffered":True,
             "excludes":["curses"],
             "optimize":0,
