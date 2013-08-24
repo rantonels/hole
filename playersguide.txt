@@ -53,6 +53,10 @@ $ /opt/python3.3/bin/python3 hole
 
 WINDOWS (Finally tested!)
 
+If you're lazy: run the hole.exe file. This is not updated frequently.
+
+If you want the latest version:
+
 Install Python (2.7 recommended.)
 
 Install the pygame library (avoid 64-bit versions as they don't seem to be able to link correctly to Python. If the setup can't find a Python installation in the registry, switch to the 32-bit version suited to your Python version)
@@ -73,7 +77,7 @@ change this line if you have a different version of python.
 
 Ascii Mode: Play in terminal window using ascii graphics with curses (Linux only)
 Unicode Mode: Play in terminal window using text graphics with utf8 characters with curses (Linux only, Python 3.3)
-Standalone Mode: Play in standalone window with ascii graphics (Windows and Linux)
+Standalone Mode: Play in standalone window with graphical tiles (Windows and Linux)
 
 Hole was originally written using the ASCII charset. This is a very limited but universally supported set of symbols. Since version 1.0.6, a Unicode mode is included, which extend greatly the set of available glyphs and thus provides more interesting graphics. However, it comes with a cost: Hole has to be run with Python3.3, and the terminal emulator and his font must support unicode. If you want to give it a try, you can select UNICODE at the beginning of the game execution. If this menu popping up every damn time annoys you, bypass it by appending the options --ascii, --unicode or --standalone  when running hole on the command line.
 
@@ -151,8 +155,10 @@ C - Cast spell
 P - Commit suicide
 I - Check game progress, found emeralds, experience points, curse status...
 V - Toggle FOV dots
+X - Look around, examine
 
 
+To burn an item to fuel your torch, open the inventory with U, select the item, and press B.
 
 
 
@@ -161,7 +167,7 @@ V - Toggle FOV dots
 Enemies are red letters, except for gnomes. When an enemy is killed (by any means) you are dealt experience points; the amount depends exclusively on the race of the enemy.
 
 *ANIMALS (a, b ... z)
-Red lowercase letters are animals (basic enemies.) An a (Ant) is the weakest, a z (Zebra) is the toughest. Note that n,p,q,s,v,x and z have the ability to freeze you.
+Red lowercase letters are animals (basic enemies.) An a (Ant) is the weakest, a z (Zebra) is the toughest. Note that n,p,q,s,v,x and z have the ability to freeze you. Animals occasionally come in packs, led by a leader (identify it with the X command). They can have different personalities (Timid, Prudent and Aggressive) which influence their behaviour.
 
 *SUCCUBI (S)
 Succubi cast a curse (Love) as soon as they attack you, if you are male. If you are in love you cannot attack any Succubus physically (you can still move or use magic though.)
