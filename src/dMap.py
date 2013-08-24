@@ -5,10 +5,17 @@ from math import *
 wedidit=True
 
 
-# N is the set of nodes {a,b,c..}
-# A is the set of arcs with costs {(a,b,1),(a,c,2)..}
-#
-# Use: Kruskal (N,A)
+
+
+class pRoom:
+    def __init__(self,x,y,w,h):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+
+        self.count = 0
+
 
 def find (u, C):
   i = 0
@@ -140,6 +147,12 @@ class dMap:
                     toclean.append((i,j))
        for t in toclean:
         self.mapArr[t[1]][t[0]] = 1
+
+
+
+       self.pRoomList = [ pRoom(r[2],r[3],r[1],r[0]) for r in self.roomList]
+
+
 
        return wedidit
 
@@ -659,4 +672,6 @@ class dMap:
                     toclean.append((i,j))
     for t in toclean:
         self.caveArr[t[1]][t[0]] = 1
+
+    self.pRoomList = [ pRoom(r[0],r[1],r[2],r[3]) for r in rooms]
 

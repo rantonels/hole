@@ -7,9 +7,10 @@ THINGS I WILL IMPLEMENT:
 * wrapper for exceptions (no more scrambled terminal windows!)
 * bows and arrows and throwing
 * abilities (sword, bow, magic)
-* alchemy/metals/potions system
+* potions system
 * examine object in inventory command
 * shallow water, water enemies, electrocuting, rotten water, grass, foliage, fires
+* no more empty rooms (intelligent placement)
 
 
 
@@ -29,10 +30,10 @@ THINGS FORMERLY IN THE LIST ABOVE
 GRAPHICAL/STANDALONE MODE:
 * held key functionality
 * bug: ? key does not work at all
-* no getstring functionality (= no custom player name!)
-* A DREAM: graphical tiles?
+* A DREAM: graphical tiles? WORKING ON IT
 
 
 
 SOLVED IN GRAPHICAL
 * bug: why is canvas so small? SOLVED
+* no getstring functionality (= no custom player name!) SOLVED

@@ -410,7 +410,7 @@ def addstrtrans(screen,y,x,string,col = color_pair(0)):
 def isfree(num):
     return (num in [0])
 def isnonsolid(num):
-    return (num in [0,8])
+    return (num in [0,8,4])
 
 def hall_color(color):
     global curss
@@ -1359,6 +1359,7 @@ class Animal(Meanie):
 
         i = index
         Meanie.__init__(self,x,y, mobsalphabet[i] , animalsymbols[i],  2 + max(i,-25+3*i), max(1,i-1,-24+3*i), 4+2*(i+i*i//4),  i//2+1 )
+        self.index = index
        
  
         self.brain = HunterBrainAlpha(self,personality)
@@ -1521,7 +1522,7 @@ if UNICODE:
 
 if GRAPHIC:
     for i in range(0,13):
-        tset[i] = (chr(127+i),(WHITE,BLACK))
+        tset[i] = (127 +32*6 +i,(WHITE,BLACK))
 
 xaminetiles = {
     1: "It's a sturdy stone wall.",
@@ -1587,6 +1588,11 @@ ssheet = {
 
 if UNICODE:
     ssheet[1] = (u'⚶',2)
+
+if GRAPHIC:
+   donebitches = 1
+   for i in range(donebitches+1):
+       ssheet[i] = (chr(127 + 1 + i),(WHITE,BLACK)) 
 
 SPELL_FIRE = 0
 SPELL_TELEPORT = 1
@@ -1995,6 +2001,7 @@ flush_main()
 #INIT
 
 drawCount = 0
+stairstipgiven = False
 
 mxhp=100
 hp=100
@@ -2105,7 +2112,8 @@ helppanel = [
 " z                  sort inventory alphabetically                       ",
 " x                  examine, look around, see enemy stats               ",
 " t                  turn torch on/off (turning off costs 10 turns)      ",
-"                                                                   "
+" g                  go downstairs (when, of course, standing on stairs) ",
+"                                                                        "
 
 ]
 
@@ -2274,40 +2282,45 @@ def dropshit(x,y,lv):
         value = randint(0,lv)
         lo = [0]
         if value <= 1:
-            lo = [OBJ_GOLD]
+            lo = Item(OBJ_GOLD,x,y)
         elif value <= 3:
             lo = ranplant()
+            lo.position(x,y)
         elif value <= 5:
-            lo = [OBJ_HANDBOOK]
+            lo = Item(OBJ_HANDBOOK,x,y)
         elif value <= 6:
-            lo = [choice(range(100,MAXBOOK))]
+            lo = Item(choice(range(100,MAXBOOK)),x,y)
         elif value <= 9:
-            lo = [choice(range(200,MAXARMOUR))]
+            lo = Item(choice(range(200,MAXARMOUR)),x,y)
+        elif value <= 10:
+            lo = Item(OBJ_SULFUR)
         elif value <= 12:
-            lo = [choice(range(250,MAXGOLDEN))]
+            lo = Item(choice(range(250,MAXGOLDEN)),x,y)
+        elif value <= 14:
+            lo = OBJ_MANA_DROP
         else:
-            lo = [OBJ_GOLD]
-        objects.append([x,y]+lo)
+            lo = Item(OBJ_GOLD,x,y)
+        objects.append(lo)
 
 def hite(e,force):
     global slaindragons
-    if e[2] == "Gnome":
+    if not isinstance(e,Meanie):
         return
     damage = max(0,force-randint(0,e[5]))
     e[6] = max(0,e[6]-force)
     if(e[6]<=0):
         mess("The "+e[2]+" is dead.")
         e.brain.deadMessage()
-        if (e[3] in range(ord('a'),ord('z')+1)):
+        if isinstance(e,Animal):
             if randint(0,5)==0:
-                dropshit(e[0],e[1],e[3]-ord('a'))
+                dropshit(e[0],e[1],e.index)
             elif randint(0,8)==0:
                 #dropcarcass
-                objects.append(Carcass(e[3] - ord('a'), e[0], e[1]))
-        if (e[2] == "Fairy"):
+                objects.append(Carcass(e.index, e[0], e[1]))
+        if isinstance(e, Fairy):
             if lvl[x][y]!=8:
                 objects.append(Item(OBJ_FAIRY_LIVER,e[0],e[1]))
-        if (e[2] == "Dragon"):
+        if isinstance(e,Dragon):
             if lvl[x][y]!=8:
                 objects.append(Item(OBJ_DRAGON_SCALES,e[0],e[1]))
             slaindragons += 1
@@ -2460,16 +2473,37 @@ def messformat():
 
     return out
 
+
+def firstFreeRoom():
+    global mapper
+    mapper.pRoomList.sort(key = lambda r : r.count)
+    return mapper.pRoomList[0]
+
+
 def findfree():
-    global lvl
-    gx = 0
-    gy = 0
-    safe = 0
-    while not isfree(lvl[gx][gy]) and safe < 400:
-        gx = randint(0,LV_W-1)
-        gy = randint(0,LV_H-1)
-        safe+=1
-    return (gx,gy)
+    global lvl,mapper
+
+    safe2 = 0
+
+    while safe2 < 50:
+        r = firstFreeRoom()
+        gx = 0
+        gy = 0
+        safe = 0
+
+        while safe < 400:
+            gx = randint(r.x,r.x+r.w)
+            gy = randint(r.y,r.y+r.h)
+            safe+=1
+
+            if isfree(lvl[gx][gy]):
+               r.count += 1
+               return (gx,gy)
+
+        safe += 50
+        mapper.pRoomList.remove(r)
+
+    return (0,0)
 
 fog = []
 def floodfill(xs,ys,ite=-1,force=False):
@@ -2575,7 +2609,7 @@ class Map(object):
         return lvl[x][y]
     def blocked(self, x, y):
         global lvl
-        if (lvl[x][y] in [100]): #transparent tiles
+        if (lvl[x][y] in [4,100]): #transparent tiles
             return False
         return (x < 0 or y < 0
                 or x >= self.width or y >= self.height
@@ -2837,10 +2871,22 @@ while menu:
                         menu = False
                         cock = False
                     if m==0:
-                        stdscr.addstr(1,15,"_"*10)
-                        curses.echo()
-                        name = stdscr.getstr(1,15,10)
-                        curses.noecho()
+                    
+                        name = ""
+                        while True:
+                            stdscr.addstr(1,15,name.ljust(20))
+                            flush_main()
+                            sdd = getchar()
+                            if sdd == KEYENTER:
+                               break
+                            elif len(name)<14 and sdd in [ord(g) for g in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ ']:
+                                if len(name) == 0:
+                                   toadd = chr(sdd).upper()
+                                else:
+                                   toadd = chr(sdd).lower()
+                                name += toadd
+                            
+
                     if m==1:
                         gender = not gender
                     if m==2:
@@ -2966,7 +3012,7 @@ def draw():
                                 mypad.addch(j,i,DIRTSH[total][0],color_pair(WALLS[total][1]))
                                 continue
                             else:
-                                mypad.addch(j,i,hall_char(chr(ord(tset[lvl[i][j]][0]) + 32*3)),hall_color(color_pair_fb(WHITE,BLACK)))
+                                mypad.addch(j,i,hall_char(tset[lvl[i][j]][0] - 32*3)),hall_color(color_pair_fb(WHITE,BLACK))
                         else:
                             
                             if lvl[i][j] in [3,4,7]: #special tiles for blue-on-black
@@ -2995,7 +3041,7 @@ def draw():
                                 mypad.addch(j,i,hall_char(lavanim[val]),hall_color(tilecol))
 
                             else:
-                                mypad.addstr(j,i,hall_char(tset[lvl[i][j]][0]) , hall_color(tilecol)  )
+                                mypad.addch(j,i,hall_char(tset[lvl[i][j]][0]) , hall_color(tilecol)  )
                                 
                 else:
                     mypad.addch(j,i,' ',color_pair(0))
@@ -3170,7 +3216,7 @@ def draw():
 
 def dopturn(cmd):
 
-        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,clairvoying,toggletorch
+        global x,y,hp,mxhp,gold,mana,lvl,entities,ssheet,tset,objects,inventory,equip,waterlvl,atk,dfn,stage,rank,attributes,alive,crawlin,visibility_dots,camx,camy,fovBrain,clairvoying,toggletorch,stairstipgiven
 
         turn = False
 
@@ -3253,11 +3299,9 @@ def dopturn(cmd):
                     mess("You open the door.")
                     #floodfill(nx,ny,-1,True)
                     return True
-                if lvl[nx][ny] == 4: #exit
-                    crawlin = False
-                    mess("You descend the stairs...")
-                    return True
-
+                if lvl[nx][ny] == 4 and stage==1 and stairstipgiven == False: #exit
+                    mess("Press g to go downstairs")
+                    stairstipgiven = True
                 if lvl[nx][ny] == 7: #vending machine
 
                     exitgiftshop=True
@@ -3326,6 +3370,16 @@ def dopturn(cmd):
                     y = ny
                     turn=1  
                     return True
+
+        #descend stairs go down stairs downstairs 
+        
+        if cmd in [ord('g'),ord('>'),ord(' '),ord('\n')]:
+           if lvl[x][y] == 4:
+              crawlin = False
+              mess("You descend the stairs...")
+              return True
+
+
 
         #f button throw
 
@@ -3516,7 +3570,7 @@ def dopturn(cmd):
                     if inventory[pos][2] == OBJ_GNOME:
                         mess("You let "+inventory[pos].gnome.name+" go")
                         gibby = inventory[pos].gnome
-                        gibby.brain.status = GN_FULL
+                        gibby.brain.state = GN_FULL
                         (gibby.x,gibby.y) = (x,y)
                         entities.append(gibby)
                         del inventory[pos]
@@ -3744,7 +3798,6 @@ def dopturn(cmd):
             n = 0
             while True:
 
-                blitlvl()
                 for i in range(0,len(inventory)):
                     s = object_names(inventory[i])[:INVCLIP]
                     back.addstr(7+i,LW_W+4, s, color_pair(inventory[i].colour()))
@@ -3760,6 +3813,7 @@ def dopturn(cmd):
                 back.addstr(LW_H+1,2,"[i] item details",color_pair_fb(YELLOW,BLACK)) 
            
                 blitback()
+                blitlvl()
                 flush_main()
                 s = getchar()
 
@@ -4411,6 +4465,7 @@ flush_main()
 if DEBUG:
     spellsprog = [9]*3
 
+mapper = None
 alive=True
 stage=0
 WATSTEPS=600
